@@ -12274,6 +12274,7 @@ int main(int argc, char** argv) {
   init_target();
   init_kernel();
 
+  printf("./selfie: This is Dimael Rivas\'s Selfie!\n");
   exit_code = selfie(0);
 
   return exit_selfie(exit_code, " [ ( -m | -d | -r | -y ) 0-4096 ... ]");
