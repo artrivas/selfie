@@ -2390,6 +2390,7 @@ uint64_t minster(uint64_t* to_context);
 uint64_t mobster(uint64_t* to_context);
 
 uint64_t selfie_run(uint64_t machine);
+uint64_t selfie_run_mipsterOS(uint64_t machine);
 
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
@@ -11841,24 +11842,34 @@ uint64_t mipster(uint64_t* to_context) {
   uint64_t timeout;
   uint64_t* from_context;
 
+
   timeout = TIMESLICE;
 
   while (1) {
     from_context = mipster_switch(to_context, timeout);
 
     if (get_parent(from_context) != MY_CONTEXT) {
+      //printf("condition 1: ");
       // dispatch exception handling to parent
       to_context = get_parent(from_context);
 
       timeout = TIMEROFF;
-    } else if (handle_exception(from_context) == EXIT)
+    } else if (handle_exception(from_context) == EXIT){
+      //printf("condition 2: ");
       return get_exit_code(from_context);
-    else {
+    }else if(get_next_context(from_context) != (uint64_t*) 0){
+      //printf("condition 3: ");
       // TODO: scheduler should go here
-      to_context = from_context;
+      to_context = get_next_context(from_context);
 
       timeout = TIMESLICE;
+    } else {
+      to_context = used_contexts;
+      timeout = TIMESLICE;
+
     }
+    //printf("wafada1   = %p\n", (void *) &from_context);
+    //printf("wafada2   = %p\n", (void *) &temp);
   }
 }
 
@@ -11870,9 +11881,11 @@ uint64_t hypster(uint64_t* to_context) {
 
     if (handle_exception(from_context) == EXIT)
       return get_exit_code(from_context);
-    else
+    else if(get_next_context(from_context) != (uint64_t*) 0){
       // TODO: scheduler should go here
-      to_context = from_context;
+      to_context = get_next_context(from_context);
+    }else
+      to_context = used_contexts;
   }
 }
 
@@ -11979,6 +11992,100 @@ uint64_t minster(uint64_t* to_context) {
 uint64_t mobster(uint64_t* to_context) {
   // does not handle page faults, relies on fancy hypsters to do that
   return minmob(to_context);
+}
+
+uint64_t selfie_run_mipsterOS(uint64_t machine) {
+  uint64_t exit_code;
+  uint64_t number;
+  uint64_t contextmemory;
+
+  contextmemory = 10;
+
+  if (code_size == 0) {
+    printf("%s: nothing to run, debug, or host\n", selfie_name);
+
+    return EXITCODE_BADARGUMENTS;
+  } else if (machine == HYPSTER) {
+    if (OS != SELFIE) {
+      printf("%s: hypster only runs on mipster\n", selfie_name);
+
+      return EXITCODE_BADARGUMENTS;
+    }
+  } 
+
+  reset_interpreter();
+  reset_profiler();
+  reset_microkernel();
+
+  number = atoi((peek_argument(0))); //Extraemos el numero del elemento
+  //init_memory(number);  Es necesario?? pq al final esto solo añade el tamaño de la memoria, pero en ese caso con que tamaño de memoria deberia iniciar mipster?
+  init_memory(contextmemory);
+
+
+  while(number){
+    current_context = create_context(MY_CONTEXT, 0);
+    boot_loader(current_context);
+    number = number - 1;
+  }
+  
+  
+    
+  run = 1;
+
+  
+
+  printf("%s: %lu-bit %s executing %lu-bit RISC-U binary %s with %luMB physical memory", selfie_name,
+    SIZEOFUINT64INBITS,
+    (char*) *(MACHINES + machine),
+    WORDSIZEINBITS,
+    binary_name,
+    PHYSICALMEMORYSIZE / MEGABYTE);
+
+  if (GC_ON) {
+    gc_init(current_context);
+
+    printf(", gcing every %lu mallocs, ", GC_PERIOD);
+    if (GC_REUSE) printf("reusing memory"); else printf("not reusing memory");
+  }
+
+  if (debug) {
+    if (record)
+      printf(", and replay");
+    else
+      printf(", and debugger");
+  }
+
+  printf("\n%s: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", selfie_name);
+
+  //Aca sospecho que se imprimen los hello worlds
+  if (machine == MIPSTER)
+    exit_code = mipster(current_context);
+  else if (machine == HYPSTER)
+    exit_code = hypster(current_context);
+  else
+    exit_code = 0;
+
+  printf("\n%s: <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n", selfie_name);
+
+  printf("%s: %lu-bit %s terminating %lu-bit RISC-U binary %s with exit code %ld\n", selfie_name,
+    SIZEOFUINT64INBITS,
+    (char*) *(MACHINES + machine),
+    WORDSIZEINBITS,
+    binary_name,
+    sign_extend(exit_code, SYSCALL_BITWIDTH));
+
+  print_profile();
+
+  run = 0;
+
+  record = 0;
+
+  debug_syscalls = 0;
+  debug          = 0;
+
+  printf("%s: ################################################################################\n", selfie_name);
+
+  return exit_code;
 }
 
 uint64_t selfie_run(uint64_t machine) {
@@ -12189,6 +12296,10 @@ uint64_t selfie(uint64_t extras) {
           return selfie_run(DIPSTER);
         else if (string_compare(argument, "-r"))
           return selfie_run(RIPSTER);
+        else if (string_compare(argument, "-x")) // añadimos la opcion del -x 
+          return selfie_run_mipsterOS(MIPSTER);
+        else if (string_compare(argument, "-z"))
+          return selfie_run_mipsterOS(HYPSTER);
         else if (string_compare(argument, "-y"))
           return selfie_run(HYPSTER);
         else if (string_compare(argument, "-min"))
