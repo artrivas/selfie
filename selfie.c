@@ -7,7 +7,7 @@ Selfie is a project of the Computational Systems Group at the
 Department of Computer Sciences of the University of Salzburg
 in Austria. For further information please refer to:
 
-selfie.cs.uni-salzburg.at
+http://selfie.cs.uni-salzburg.at
 
 The Selfie Project provides an educational platform for teaching
 undergraduate and graduate students the design and implementation
@@ -80,7 +80,7 @@ is inspired by the conservative garbage collector of Hans Boehm.
 
 All of selfie including its source code is available at:
 
-github.com/cksystemsteaching/selfie
+https://github.com/cksystemsteaching/selfie
 
 */
 
@@ -100,6 +100,9 @@ void exit(int code);
 uint64_t read(uint64_t fd, uint64_t* buffer, uint64_t bytes_to_read);
 uint64_t write(uint64_t fd, uint64_t* buffer, uint64_t bytes_to_write);
 
+int fork();
+uint64_t wait(uint64_t *wstatus);
+
 // selfie bootstraps char to uint64_t and ignores ellipsis!
 uint64_t open(char* filename, uint64_t flags, ...);
 
@@ -114,6 +117,9 @@ int dprintf(int fd, const char* format, ...);
 // -----------------------------------------------------------------
 // ----------------------- LIBRARY PROCEDURES ----------------------
 // -----------------------------------------------------------------
+
+void init_library();
+void reset_library();
 
 uint64_t two_to_the_power_of(uint64_t p);
 uint64_t log_two(uint64_t n);
@@ -232,7 +238,6 @@ uint64_t SIZEOFUINT     = 8; // size of target-dependent unsigned integer in byt
 uint64_t SIZEOFUINTSTAR = 8; // size of target-dependent pointer to unsigned integer in bytes
 
 uint64_t UINT_MAX; // maximum numerical value of target-dependent unsigned integer
-uint64_t INT_MIN;  // minimum numerical value of target-dependent signed integer
 
 uint64_t WORDSIZE       = 8;  // target-dependent word size in bytes
 uint64_t WORDSIZEINBITS = 64; // WORDSIZE * 8
@@ -270,7 +275,7 @@ uint64_t MAC_O_CREAT_TRUNC_WRONLY = 1537;
 // WINDOWS: 33537 = 0x8301 = _O_BINARY (0x8000) | _O_CREAT (0x0100) | _O_TRUNC (0x0200) | _O_WRONLY (0x0001)
 uint64_t WINDOWS_O_BINARY_CREAT_TRUNC_WRONLY = 33537;
 
-// default is LINUX, re-initialized in init_system()
+// default is LINUX, re-initialized in init_system
 uint64_t O_CREAT_TRUNC_WRONLY = 577; // write-only flags for host operating system
 
 // flags for rw-r--r-- (text) file permissions
@@ -286,6 +291,8 @@ uint64_t S_IRUSR_IWUSR_IXUSR_IRGRP_IXGRP_IROTH_IXOTH = 493;
 // ------------------------ GLOBAL VARIABLES -----------------------
 
 uint64_t number_of_written_characters = 0;
+
+uint64_t old_pid = 1; // de esta forma old_pid sea 0
 
 char*    output_name = (char*) 0;
 uint64_t output_fd   = 1; // standard output file descriptor
@@ -332,7 +339,6 @@ void init_library() {
   SIZEOFUINT     = sizeof(uint64_t);
   SIZEOFUINTSTAR = sizeof(uint64_t*);
   UINT_MAX       = UINT64_MAX;
-  INT_MIN        = INT64_MIN;
   WORDSIZE       = sizeof(uint64_t);
   WORDSIZEINBITS = WORDSIZE * 8;
 
@@ -370,6 +376,9 @@ void reset_library() {
 // -----------------------------------------------------------------
 // ---------------------------- SCANNER ----------------------------
 // -----------------------------------------------------------------
+
+void init_scanner();
+void reset_scanner();
 
 void print_symbol(uint64_t symbol);
 void print_line_number(char* message, uint64_t line);
@@ -561,6 +570,21 @@ void reset_scanner() {
 // ------------------------- SYMBOL TABLE --------------------------
 // -----------------------------------------------------------------
 
+void reset_symbol_tables();
+
+uint64_t hash(uint64_t* key);
+
+uint64_t* create_symbol_table_entry(uint64_t table, char* string,
+  uint64_t line, uint64_t class, uint64_t type, uint64_t value, uint64_t address);
+
+uint64_t* search_symbol_table(uint64_t* entry, char* string, uint64_t class);
+uint64_t* search_global_symbol_table(char* string, uint64_t class);
+uint64_t* search_local_symbol_table(char* string);
+uint64_t* get_scoped_symbol_table_entry(char* string);
+
+uint64_t is_undefined_procedure(uint64_t* entry);
+uint64_t report_undefined_procedures();
+
 // symbol table entry
 // +---+---------+
 // | 0 | next    | pointer to next entry
@@ -594,19 +618,6 @@ void set_type(uint64_t* entry, uint64_t type)        { *(entry + 4) = type; }
 void set_value(uint64_t* entry, uint64_t value)      { *(entry + 5) = value; }
 void set_address(uint64_t* entry, uint64_t address)  { *(entry + 6) = address; }
 void set_scope(uint64_t* entry, uint64_t scope)      { *(entry + 7) = scope; }
-
-uint64_t hash(uint64_t* key);
-
-uint64_t* create_symbol_table_entry(uint64_t table, char* string,
-  uint64_t line, uint64_t class, uint64_t type, uint64_t value, uint64_t address);
-
-uint64_t* search_symbol_table(uint64_t* entry, char* string, uint64_t class);
-uint64_t* search_global_symbol_table(char* string, uint64_t class);
-uint64_t* search_local_symbol_table(char* string);
-uint64_t* get_scoped_symbol_table_entry(char* string);
-
-uint64_t is_undefined_procedure(uint64_t* entry);
-uint64_t report_undefined_procedures();
 
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
@@ -663,6 +674,8 @@ void     tfree(uint64_t number_of_temporaries);
 // -----------------------------------------------------------------
 // ---------------------------- PARSER -----------------------------
 // -----------------------------------------------------------------
+
+void reset_parser();
 
 uint64_t is_type();
 uint64_t is_value();
@@ -808,6 +821,8 @@ void macro_var_end();
 // ---------------------- MACHINE CODE LIBRARY ---------------------
 // -----------------------------------------------------------------
 
+void init_bootstrapping();
+
 void emit_round_up(uint64_t reg, uint64_t m);
 void emit_multiply_by(uint64_t reg, uint64_t m);
 
@@ -846,6 +861,8 @@ void selfie_compile();
 // -----------------------------------------------------------------
 // ---------------------------- REGISTER ---------------------------
 // -----------------------------------------------------------------
+
+void init_register();
 
 char* get_register_name(uint64_t reg);
 void  print_register_name(uint64_t reg);
@@ -1030,6 +1047,9 @@ uint64_t funct7 = 0;
 // ---------------------------- BINARY -----------------------------
 // -----------------------------------------------------------------
 
+void reset_binary();
+void reset_binary_counters();
+
 uint64_t get_total_number_of_instructions();
 uint64_t get_total_number_of_nops();
 
@@ -1090,40 +1110,34 @@ void finalize_data_segment();
 
 uint64_t* touch(uint64_t* memory, uint64_t bytes);
 
-uint64_t* allocate_elf_header(uint64_t size);
-
-uint64_t get_elf_header_size();
+uint64_t* allocate_elf_header();
 
 uint64_t* encode_elf_header();
-void      encode_elf_program_header(uint64_t* header, uint64_t ph_index);
+void      decode_elf_header(uint64_t* header);
 
-uint64_t validate_elf_file_header_top(uint64_t* header);
+uint64_t get_elf_program_header_offset(uint64_t ph_index);
+void     encode_elf_program_header(uint64_t* header, uint64_t ph_index);
+void     decode_elf_program_header(uint64_t* header, uint64_t ph_index);
 
-uint64_t decode_elf_file_header(uint64_t* header);
-uint64_t decode_elf_program_header(uint64_t* header);
+uint64_t validate_elf_header(uint64_t* header);
 
 uint64_t open_write_only(char* name, uint64_t mode);
 
 void selfie_output(char* filename);
-void selfie_load(char* filename);
+void selfie_load();
 
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
-uint64_t ELF_HEADER_SIZE = 4096; // for page-aligned code and data segments
+// page-aligned ELF header size for storing file header, program header, code size
+uint64_t ELF_HEADER_SIZE = 4096;
 
 uint64_t ELFCLASS64 = 2;
 uint64_t ELFCLASS32 = 1;
-
-uint64_t MAX_BINARY_SIZE = 1048576; // 1MB
 
 uint64_t MAX_CODE_SIZE = 524288; // 512KB
 uint64_t MAX_DATA_SIZE = 65536;  // 64KB
 
 uint64_t PK_CODE_START = 65536; // start of code segment at 0x10000 (according to RISC-V pk)
-
-uint64_t PT_LOAD = 1; // loadable segment
-uint64_t PF_RX   = 5; // readable and executable segment
-uint64_t PF_RW   = 6; // readable and writable segment
 
 // ELF file header
 
@@ -1266,6 +1280,12 @@ void     implement_read(uint64_t* context);
 void emit_write();
 void implement_write(uint64_t* context);
 
+void emit_fork();
+void implement_fork(uint64_t* context);
+
+void emit_wait();
+void implement_wait(uint64_t* context);
+
 void     emit_open();
 uint64_t down_load_string(uint64_t* context, uint64_t vstring, char* s);
 void     implement_openat(uint64_t* context);
@@ -1286,6 +1306,8 @@ uint64_t debug_brk   = 0;
 uint64_t SYSCALL_EXIT   = 93;
 uint64_t SYSCALL_READ   = 63;
 uint64_t SYSCALL_WRITE  = 64;
+uint64_t SYSCALL_FORK  = 65;
+uint64_t SYSCALL_WAIT  = 66;
 uint64_t SYSCALL_OPENAT = 56;
 uint64_t SYSCALL_BRK    = 214;
 
@@ -1304,10 +1326,9 @@ uint64_t  IO_buffer_size = 0;
 // ------------------------ HYPSTER SYSCALL ------------------------
 // -----------------------------------------------------------------
 
-void emit_switch();
-void do_switch(uint64_t* to_context, uint64_t timeout);
-void implement_switch();
-
+void      emit_switch();
+uint64_t* do_switch(uint64_t* from_context, uint64_t* to_context, uint64_t timeout);
+void      implement_switch();
 uint64_t* mipster_switch(uint64_t* to_context, uint64_t timeout);
 uint64_t* hypster_switch(uint64_t* to_context, uint64_t timeout);
 
@@ -1470,25 +1491,28 @@ uint64_t L1_icache_coherency_invalidations = 0;
 // ---------------------------- MEMORY -----------------------------
 // -----------------------------------------------------------------
 
+void init_memory(uint64_t megabytes);
+
 uint64_t load_physical_memory(uint64_t* paddr);
 void     store_physical_memory(uint64_t* paddr, uint64_t data);
 
-uint64_t root_PDE_offset(uint64_t page);
-uint64_t leaf_PTE_offset(uint64_t page);
+uint64_t get_root_PDE_offset(uint64_t page);
+uint64_t get_leaf_PTE_offset(uint64_t page);
 
-uint64_t* get_PTE_address(uint64_t* parent_table, uint64_t* table, uint64_t page);
+uint64_t* get_PTE_address_for_page(uint64_t* parent_table, uint64_t* table, uint64_t page);
+uint64_t  get_frame_for_page(uint64_t* table, uint64_t page);
 
-uint64_t get_page_frame(uint64_t* table, uint64_t page);
+void set_PTE_for_page(uint64_t* table, uint64_t page, uint64_t frame);
+
 uint64_t is_page_mapped(uint64_t* table, uint64_t page);
-void     set_page_frame(uint64_t* table, uint64_t page, uint64_t frame);
 
-uint64_t page_of_virtual_address(uint64_t vaddr);
-uint64_t virtual_address_of_page(uint64_t page);
+uint64_t get_page_of_virtual_address(uint64_t vaddr);
+uint64_t get_virtual_address_of_page_start(uint64_t page);
 
 uint64_t is_virtual_address_valid(uint64_t vaddr, uint64_t alignment);
 uint64_t is_virtual_address_mapped(uint64_t* table, uint64_t vaddr);
 
-uint64_t* translate_virtual_to_physical(uint64_t* table, uint64_t vaddr);
+uint64_t* tlb(uint64_t* table, uint64_t vaddr);
 
 uint64_t load_virtual_memory(uint64_t* table, uint64_t vaddr);
 void     store_virtual_memory(uint64_t* table, uint64_t vaddr, uint64_t data);
@@ -1500,42 +1524,215 @@ uint64_t load_cached_instruction_word(uint64_t* table, uint64_t vaddr);
 
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
-uint64_t debug_translation = 0;
+uint64_t debug_tlb = 0;
 
 uint64_t KILOBYTE = 1024;       // 1KB (KiB: 2^10B)
 uint64_t MEGABYTE = 1048576;    // 1MB (MiB: 2^20B)
 uint64_t GIGABYTE = 1073741824; // 1GB (GiB: 2^30B)
 
-uint64_t VIRTUALMEMORYSIZE     = 4; // 4GB of virtual memory (avoiding 32-bit overflow)
-uint64_t HIGHESTVIRTUALADDRESS = 4294967295; // VIRTUALMEMORYSIZE * GIGABYTE - 1 (avoiding 32-bit overflow)
+uint64_t VIRTUALMEMORYSIZE = 4; // 4GB of virtual memory (avoiding 32-bit overflow)
 
-uint64_t PAGESIZE      = 4096; // 4KB-virtual pages
-uint64_t PAGEFRAMESIZE = 4096; // 4KB-physical page frames: target-dependent, see init_memory()
+uint64_t PAGESIZE = 4096; // 4KB virtual pages
 
-uint64_t NUMBEROFPAGES    = 1048576; // VIRTUALMEMORYSIZE * GIGABYTE / PAGESIZE
-uint64_t NUMBEROFLEAFPTES = 512;     // PAGESIZE / sizeof(uint64_t*): host-dependent, see init_memory()
+uint64_t NUMBEROFPAGES = 1048576; // VIRTUALMEMORYSIZE * GIGABYTE / PAGESIZE
 
 uint64_t PAGETABLETREE = 1; // two-level page table is default
 
-uint64_t PHYSICALMEMORYSIZE   = 0; // total amount of physical memory available for page frames
+uint64_t PHYSICALMEMORYSIZE   = 0; // total amount of physical memory available for frames
 uint64_t PHYSICALMEMORYEXCESS = 2; // tolerate more allocation than physically available
+
+// target-dependent, see init_target()
+uint64_t HIGHESTVIRTUALADDRESS = 4294967288; // VIRTUALMEMORYSIZE * GIGABYTE - WORDSIZE
+
+// host-dependent, see init_memory()
+uint64_t NUMBEROFLEAFPTES = 512; // number of leaf page table entries == PAGESIZE / sizeof(uint64_t*)
 
 // ------------------------- INITIALIZATION ------------------------
 
 void init_memory(uint64_t megabytes) {
-  // target-dependent: reinitialize in case sizeof(uint64_t) is not WORDSIZE
-  PAGEFRAMESIZE = PAGESIZE * (sizeof(uint64_t) / WORDSIZE);
-
-  // host-dependent: reinitialize in case sizeof(uint64_t*) is SINGLEWORDSIZE
-  NUMBEROFLEAFPTES = PAGESIZE / sizeof(uint64_t*);
-
   if (megabytes < 1)
     megabytes = 1;
   else if (megabytes > 4096)
     megabytes = 4096;
 
-  PHYSICALMEMORYSIZE   = megabytes * MEGABYTE;
-  PHYSICALMEMORYEXCESS = PHYSICALMEMORYEXCESS * (PAGEFRAMESIZE / PAGESIZE);
+  PHYSICALMEMORYSIZE = megabytes * MEGABYTE;
+
+  // host-dependent: reinitialize in case sizeof(uint64_t*) is not 8
+  NUMBEROFLEAFPTES = PAGESIZE / sizeof(uint64_t*);
+}
+
+// -----------------------------------------------------------------
+// ---------------------- GARBAGE COLLECTOR ------------------------
+// -----------------------------------------------------------------
+
+void reset_gc_counters();
+
+// bootstrapped to actual functions during compilation ...
+uint64_t fetch_stack_pointer()     { return 0; } // indicate that gc is unavailable
+uint64_t fetch_global_pointer()    { return 0; }
+uint64_t fetch_data_segment_size() { return 0; }
+
+// ... here, not available on boot level 0 - only for compilation
+void emit_fetch_stack_pointer();
+void emit_fetch_global_pointer();
+void emit_fetch_data_segment_size_interface();
+void emit_fetch_data_segment_size_implementation(uint64_t fetch_dss_code_location);
+
+void implement_gc_brk(uint64_t* context);
+
+uint64_t is_gc_library(uint64_t* context);
+
+// gc metadata entry
+// +----+---------+
+// |  0 | next    | pointer to next entry
+// |  1 | memory  | pointer to allocated memory
+// |  2 | size    | size of allocated memory (in bytes!)
+// |  3 | markbit | markbit indicating reachability of allocated memory
+// +----+---------+
+
+uint64_t* allocate_metadata(uint64_t* context);
+
+uint64_t* get_metadata_next(uint64_t* entry)    { return (uint64_t*) *entry; }
+uint64_t* get_metadata_memory(uint64_t* entry)  { return (uint64_t*) *(entry + 1); }
+uint64_t  get_metadata_size(uint64_t* entry)    { return             *(entry + 2); }
+uint64_t  get_metadata_markbit(uint64_t* entry) { return             *(entry + 3); }
+
+void set_metadata_next(uint64_t* entry, uint64_t* next)      { *entry       = (uint64_t) next; }
+void set_metadata_memory(uint64_t* entry, uint64_t* memory)  { *(entry + 1) = (uint64_t) memory; }
+void set_metadata_size(uint64_t* entry, uint64_t size)       { *(entry + 2) = size; }
+void set_metadata_markbit(uint64_t* entry, uint64_t markbit) { *(entry + 3) = markbit; }
+
+// getters and setters with different access in library/kernel
+
+uint64_t  get_stack_seg_start_gc(uint64_t* context);
+uint64_t  get_data_seg_start_gc(uint64_t* context);
+uint64_t  get_data_seg_end_gc(uint64_t* context);
+uint64_t  get_heap_seg_start_gc(uint64_t* context);
+uint64_t  get_heap_seg_end_gc(uint64_t* context);
+uint64_t* get_used_list_head_gc(uint64_t* context);
+uint64_t* get_free_list_head_gc(uint64_t* context);
+uint64_t  get_gcs_in_period_gc(uint64_t* context);
+uint64_t  get_gc_enabled_gc(uint64_t* context);
+
+void set_data_and_heap_segments_gc(uint64_t* context);
+void set_used_list_head_gc(uint64_t* context, uint64_t* used_list_head);
+void set_free_list_head_gc(uint64_t* context, uint64_t* free_list_head);
+void set_gcs_in_period_gc(uint64_t* context, uint64_t gcs);
+void set_gc_enabled_gc(uint64_t* context);
+
+uint64_t is_gc_enabled(uint64_t* context);
+
+void gc_init_selfie(uint64_t* context);
+
+// interface to initialize an external garbage collector (e.g. tools/boehm-gc.c)
+void gc_init(uint64_t* context);
+
+// this function performs first-fit retrieval of free memory in O(n) where n is memory size
+// improvement: push O(n) down to O(1), e.g. using Boehm's chunk allocator, or even compact-fit
+// see https://github.com/cksystemsgroup/compact-fit
+uint64_t* retrieve_from_free_list(uint64_t* context, uint64_t size);
+
+uint64_t gc_load_memory(uint64_t* context, uint64_t address);
+void     gc_store_memory(uint64_t* context, uint64_t address, uint64_t value);
+
+void zero_object(uint64_t* context, uint64_t* metadata);
+
+uint64_t* allocate_new_memory(uint64_t* context, uint64_t size);
+uint64_t* reuse_memory(uint64_t* context, uint64_t size);
+uint64_t* allocate_memory_selfie(uint64_t* context, uint64_t size);
+uint64_t* gc_malloc_implementation(uint64_t* context, uint64_t size);
+
+// interface to allocate an object using an external collector (e.g. tools/boehm-gc.c)
+uint64_t* allocate_memory(uint64_t* context, uint64_t size);
+
+// this function performs an O(n) list search where n is memory size
+// improvement: push O(n) down to O(1), e.g. using Boehm's chunk allocator
+uint64_t* get_metadata_if_address_is_valid(uint64_t* context, uint64_t address);
+
+// interface to marking an object using an external collector (e.g. tools/boehm-gc.c)
+void mark_object(uint64_t* context, uint64_t address);
+
+void mark_object_selfie(uint64_t* context, uint64_t gc_address);
+void mark_segment(uint64_t* context, uint64_t segment_start, uint64_t segment_end);
+
+// this function scans the heap from two roots (data segment and stack) in O(n^2)
+// where n is memory size; checking if a value is a pointer takes O(n), see above
+// improvement: push O(n^2) down to O(n)
+void mark(uint64_t* context);
+
+void free_object(uint64_t* context, uint64_t* metadata, uint64_t* prev_metadata);
+
+// interface to sweep marked objects using an external collector (e.g. tools/boehm-gc.c)
+void sweep(uint64_t* context);
+
+void sweep_selfie(uint64_t* context);
+
+void gc_collect(uint64_t* context);
+
+void print_gc_profile(uint64_t is_gc_kernel);
+
+// ----------------------- LIBRARY FUNCTIONS -----------------------
+
+uint64_t* gc_malloc(uint64_t size) {
+  return gc_malloc_implementation((uint64_t*) 0, size);
+}
+
+// ------------------------ GLOBAL CONSTANTS -----------------------
+
+uint64_t GC_DISABLED = 0;
+uint64_t GC_ENABLED  = 1;
+
+uint64_t GC_ON = 0; // turn on kernel variant of gc, generate gc library code
+
+uint64_t USE_GC_LIBRARY = 0; // use library variant of gc or not
+
+uint64_t GC_PERIOD = 1000; // gc every so often
+
+uint64_t GC_REUSE = 1; // reuse memory with freelist by default
+
+uint64_t GC_METADATA_SIZE = 32; // 2 * sizeof(uint64_t) + 2 * sizeof(uint64_t*)
+
+uint64_t GC_WORDSIZE = 8; // sizeof(uint64_t) for library variant, otherwise WORDSIZE
+
+uint64_t GC_MARKBIT_UNREACHABLE = 0; // indicating that an object is not reachable
+uint64_t GC_MARKBIT_REACHABLE   = 1; // indicating that an object is reachable by root or other reachable object
+
+// ------------------------ GLOBAL VARIABLES -----------------------
+
+uint64_t gc_data_seg_start = 0;
+uint64_t gc_data_seg_end   = 0;
+uint64_t gc_heap_seg_start = 0;
+uint64_t gc_heap_seg_end   = 0;
+
+uint64_t* gc_used_list = (uint64_t*) 0; // pointer to used-list head
+uint64_t* gc_free_list = (uint64_t*) 0; // pointer to free-list head
+
+uint64_t gc_num_gcs_in_period = 0;
+
+uint64_t gc_num_mallocated     = 0;
+uint64_t gc_num_gced_mallocs   = 0;
+uint64_t gc_num_ungced_mallocs = 0;
+uint64_t gc_num_reused_mallocs = 0;
+uint64_t gc_num_collects       = 0;
+uint64_t gc_mem_mallocated     = 0;
+uint64_t gc_mem_objects        = 0;
+uint64_t gc_mem_metadata       = 0;
+uint64_t gc_mem_reused         = 0;
+uint64_t gc_mem_collected      = 0;
+
+// ------------------------- INITIALIZATION ------------------------
+
+void reset_gc_counters() {
+  gc_num_mallocated     = 0;
+  gc_num_gced_mallocs   = 0;
+  gc_num_ungced_mallocs = 0;
+  gc_num_reused_mallocs = 0;
+  gc_num_collects       = 0;
+  gc_mem_mallocated     = 0;
+  gc_mem_objects        = 0;
+  gc_mem_metadata       = 0;
+  gc_mem_reused         = 0;
+  gc_mem_collected      = 0;
 }
 
 // -----------------------------------------------------------------
@@ -1630,6 +1827,9 @@ uint64_t* MNEMONICS; // assembly mnemonics of instructions
 // -------------------------- DISASSEMBLER -------------------------
 // -----------------------------------------------------------------
 
+void init_disassembler();
+void reset_disassembler();
+
 char* get_mnemonic(uint64_t ins);
 
 uint64_t print_instruction();
@@ -1642,16 +1842,6 @@ char*    assembly_name = (char*) 0; // name of assembly file
 uint64_t assembly_fd   = 0;         // file descriptor of open assembly file
 
 // ------------------------- INITIALIZATION ------------------------
-
-void reset_disassembler() {
-  if (IS64BITTARGET) {
-    *(MNEMONICS + LOAD)  = (uint64_t) "ld";
-    *(MNEMONICS + STORE) = (uint64_t) "sd";
-  } else {
-    *(MNEMONICS + LOAD)  = (uint64_t) "lw";
-    *(MNEMONICS + STORE) = (uint64_t) "sw";
-  }
-}
 
 void init_disassembler() {
   MNEMONICS = smalloc((ECALL + 1) * sizeof(uint64_t*));
@@ -1673,9 +1863,21 @@ void init_disassembler() {
   *(MNEMONICS + ECALL) = (uint64_t) "ecall";
 }
 
+void reset_disassembler() {
+  if (IS64BITTARGET) {
+    *(MNEMONICS + LOAD)  = (uint64_t) "ld";
+    *(MNEMONICS + STORE) = (uint64_t) "sd";
+  } else {
+    *(MNEMONICS + LOAD)  = (uint64_t) "lw";
+    *(MNEMONICS + STORE) = (uint64_t) "sw";
+  }
+}
+
 // -----------------------------------------------------------------
 // -------------------------- REPLAY ENGINE ------------------------
 // -----------------------------------------------------------------
+
+void init_replay_engine();
 
 void record_state(uint64_t value);
 
@@ -1703,12 +1905,22 @@ void init_replay_engine() {
 // -------------------------- INTERPRETER --------------------------
 // -----------------------------------------------------------------
 
+void init_interpreter();
+void reset_interpreter();
+
+void reset_nop_counters();
+
+void reset_source_profile();
+void reset_registers_profile();
+void reset_segments_profile();
+
+void reset_profiler();
+
 void print_register_hexadecimal(uint64_t reg);
 void print_register_octal(uint64_t reg);
 void print_register_value(uint64_t reg);
 
-uint64_t is_valid_segment_read(uint64_t vaddr);
-uint64_t is_valid_segment_write(uint64_t vaddr);
+uint64_t is_uncaught_exception(uint64_t exception);
 
 void print_exception(uint64_t exception, uint64_t fault);
 void throw_exception(uint64_t exception, uint64_t fault);
@@ -1923,6 +2135,9 @@ void reset_registers_profile() {
   *(writes_per_register + REG_SP) = 1;
   *(writes_per_register + REG_S0) = 1;
 
+  // a6 register is written to by the kernel
+  *(writes_per_register + REG_A6) = 1;
+
   stack_register_reads      = 0;
   stack_register_writes     = 0;
   argument_register_reads   = 0;
@@ -1958,6 +2173,15 @@ void reset_profiler() {
 // -----------------------------------------------------------------
 // ------------------------ MACHINE CONTEXTS -----------------------
 // -----------------------------------------------------------------
+
+uint64_t* new_context();
+
+void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt);
+
+uint64_t* find_context(uint64_t* parent, uint64_t* vctxt);
+
+void      free_context(uint64_t* context);
+uint64_t* delete_context(uint64_t* context, uint64_t* from);
 
 // machine context
 // +----+-----------------+
@@ -1996,11 +2220,16 @@ void reset_profiler() {
 // | 30 | gcs counter     | number of gc runs in gc period
 // | 31 | gc enabled      | flag indicating whether to use gc or not
 // +----+-----------------+
+// | 32 | context_id      | id del contexto
+// | 33 | parent_context  | id del contexto padre pointer
+// | 34 | child_exited    | status del hijo
+// | 35 | pid_child_exited| pid del child exited
+// | 36 | number_children | numero de hijos 
 
 // number of entries of a machine context:
 // 14 uint64_t + 6 uint64_t* + 1 char* + 7 uint64_t + 2 uint64_t* + 2 uint64_t entries
 // extended in the symbolic execution engine and the Boehm garbage collector
-uint64_t CONTEXTENTRIES = 32;
+uint64_t CONTEXTENTRIES = 36;
 
 uint64_t* allocate_context(); // declaration avoids warning in the Boehm garbage collector
 
@@ -2044,6 +2273,12 @@ uint64_t free_list_head(uint64_t* context) { return (uint64_t) (context + 29); }
 uint64_t gcs_in_period(uint64_t* context)  { return (uint64_t) (context + 30); }
 uint64_t use_gc_kernel(uint64_t* context)  { return (uint64_t) (context + 31); }
 
+uint64_t context_id(uint64_t* context)  { return (uint64_t) (context + 32); }
+uint64_t* parent_context(uint64_t* context)  { return (uint64_t*) (context + 33); }
+uint64_t child_exited(uint64_t* context)  { return (uint64_t) (context + 34); }
+uint64_t pid_child_exited(uint64_t* context)  { return (uint64_t) (context + 35); }
+uint64_t number_children(uint64_t* context)  { return (uint64_t) (context + 36); }
+
 uint64_t* get_next_context(uint64_t* context)    { return (uint64_t*) *context; }
 uint64_t* get_prev_context(uint64_t* context)    { return (uint64_t*) *(context + 1); }
 uint64_t  get_pc(uint64_t* context)              { return             *(context + 2); }
@@ -2078,6 +2313,12 @@ uint64_t* get_used_list_head(uint64_t* context) { return (uint64_t*) *(context +
 uint64_t* get_free_list_head(uint64_t* context) { return (uint64_t*) *(context + 29); }
 uint64_t  get_gcs_in_period(uint64_t* context)  { return             *(context + 30); }
 uint64_t  get_use_gc_kernel(uint64_t* context)  { return             *(context + 31); }
+
+uint64_t  get_context_id(uint64_t* context)  { return             *(context + 32); }
+uint64_t* get_parent_context(uint64_t* context)  { return       (uint64_t*)      *(context + 33); }
+uint64_t  get_child_exited(uint64_t* context)  { return             *(context + 34); }
+uint64_t  get_pid_child_exited(uint64_t* context)  { return             *(context + 35); }
+uint64_t  get_number_children(uint64_t* context)  { return             *(context + 36); }
 
 void set_next_context(uint64_t* context, uint64_t* next)     { *context        = (uint64_t) next; }
 void set_prev_context(uint64_t* context, uint64_t* prev)     { *(context + 1)  = (uint64_t) prev; }
@@ -2114,9 +2355,32 @@ void set_free_list_head(uint64_t* context, uint64_t* free_list_head) { *(context
 void set_gcs_in_period(uint64_t* context, uint64_t gcs)              { *(context + 30) = gcs; }
 void set_use_gc_kernel(uint64_t* context, uint64_t use)              { *(context + 31) = use; }
 
+void set_context_id(uint64_t* context)              { 
+  old_pid = old_pid + 1;
+  *(context + 32) = old_pid; 
+}
+void set_parent_context(uint64_t* context, uint64_t * parent)              { *(context + 33) = (uint64_t) parent; }
+void set_child_exited(uint64_t* context, uint64_t status)              { *(context + 34) = status; }
+void set_pid_child_exited(uint64_t* context, uint64_t pid)              { *(context + 35) = pid; }
+void set_number_children(uint64_t* context, uint64_t children)              { *(context + 36) = children; }
+
 // -----------------------------------------------------------------
-// ---------------------------- MEMORY -----------------------------
+// -------------------------- MICROKERNEL --------------------------
 // -----------------------------------------------------------------
+
+void reset_microkernel();
+
+uint64_t* create_context(uint64_t* parent, uint64_t* vctxt);
+uint64_t* cache_context(uint64_t* vctxt);
+
+void save_context(uint64_t* context);
+
+uint64_t lowest_page(uint64_t page, uint64_t lo);
+uint64_t highest_page(uint64_t page, uint64_t hi);
+void     map_page(uint64_t* context, uint64_t page, uint64_t frame);
+
+void restore_region(uint64_t* context, uint64_t* table, uint64_t* parent_table, uint64_t lo, uint64_t hi);
+void restore_context(uint64_t* context);
 
 uint64_t is_code_address(uint64_t* context, uint64_t vaddr);
 uint64_t is_data_address(uint64_t* context, uint64_t vaddr);
@@ -2126,211 +2390,8 @@ uint64_t is_heap_address(uint64_t* context, uint64_t vaddr);
 uint64_t is_address_between_stack_and_heap(uint64_t* context, uint64_t vaddr);
 uint64_t is_data_stack_heap_address(uint64_t* context, uint64_t vaddr);
 
-// -----------------------------------------------------------------
-// ---------------------- GARBAGE COLLECTOR ------------------------
-// -----------------------------------------------------------------
-
-// bootstrapped to actual functions during compilation ...
-uint64_t fetch_stack_pointer()     { return 0; } // indicate that gc is unavailable
-uint64_t fetch_global_pointer()    { return 0; }
-uint64_t fetch_data_segment_size() { return 0; }
-
-// ... here, not available on boot level 0 - only for compilation
-void emit_fetch_stack_pointer();
-void emit_fetch_global_pointer();
-void emit_fetch_data_segment_size_interface();
-void emit_fetch_data_segment_size_implementation(uint64_t fetch_dss_code_location);
-
-void implement_gc_brk(uint64_t* context);
-
-uint64_t is_gc_library(uint64_t* context);
-
-// gc metadata entry
-// +----+---------+
-// |  0 | next    | pointer to next entry
-// |  1 | memory  | pointer to allocated memory
-// |  2 | size    | size of allocated memory (in bytes!)
-// |  3 | markbit | markbit indicating reachability of allocated memory
-// +----+---------+
-
-uint64_t* allocate_metadata(uint64_t* context);
-
-uint64_t* get_metadata_next(uint64_t* entry)    { return (uint64_t*) *entry; }
-uint64_t* get_metadata_memory(uint64_t* entry)  { return (uint64_t*) *(entry + 1); }
-uint64_t  get_metadata_size(uint64_t* entry)    { return             *(entry + 2); }
-uint64_t  get_metadata_markbit(uint64_t* entry) { return             *(entry + 3); }
-
-void set_metadata_next(uint64_t* entry, uint64_t* next)      { *entry       = (uint64_t) next; }
-void set_metadata_memory(uint64_t* entry, uint64_t* memory)  { *(entry + 1) = (uint64_t) memory; }
-void set_metadata_size(uint64_t* entry, uint64_t size)       { *(entry + 2) = size; }
-void set_metadata_markbit(uint64_t* entry, uint64_t markbit) { *(entry + 3) = markbit; }
-
-// getters and setters with different access in library/kernel
-
-uint64_t  get_stack_seg_start_gc(uint64_t* context);
-uint64_t  get_data_seg_start_gc(uint64_t* context);
-uint64_t  get_data_seg_end_gc(uint64_t* context);
-uint64_t  get_heap_seg_start_gc(uint64_t* context);
-uint64_t  get_heap_seg_end_gc(uint64_t* context);
-uint64_t* get_used_list_head_gc(uint64_t* context);
-uint64_t* get_free_list_head_gc(uint64_t* context);
-uint64_t  get_gcs_in_period_gc(uint64_t* context);
-uint64_t  get_gc_enabled_gc(uint64_t* context);
-
-void set_data_and_heap_segments_gc(uint64_t* context);
-void set_used_list_head_gc(uint64_t* context, uint64_t* used_list_head);
-void set_free_list_head_gc(uint64_t* context, uint64_t* free_list_head);
-void set_gcs_in_period_gc(uint64_t* context, uint64_t gcs);
-void set_gc_enabled_gc(uint64_t* context);
-
-uint64_t is_gc_enabled(uint64_t* context);
-
-void gc_init_selfie(uint64_t* context);
-
-// interface to initialize an external garbage collector (e.g. tools/boehm-gc.c)
-void gc_init(uint64_t* context);
-
-// this function performs first-fit retrieval of free memory in O(n) where n is memory size
-// improvement: push O(n) down to O(1), e.g. using Boehm's chunk allocator, or even compact-fit
-// see github.com/cksystemsgroup/compact-fit
-uint64_t* retrieve_from_free_list(uint64_t* context, uint64_t size);
-
-uint64_t gc_load_memory(uint64_t* context, uint64_t address);
-void     gc_store_memory(uint64_t* context, uint64_t address, uint64_t value);
-
-void zero_block(uint64_t* context, uint64_t* metadata);
-
-uint64_t* allocate_new_memory(uint64_t* context, uint64_t size);
-uint64_t* reuse_memory(uint64_t* context, uint64_t size);
-uint64_t* allocate_memory_selfie(uint64_t* context, uint64_t size);
-uint64_t* gc_malloc_implementation(uint64_t* context, uint64_t size);
-
-// interface to allocate a memory block using an external collector (e.g. tools/boehm-gc.c)
-uint64_t* allocate_memory(uint64_t* context, uint64_t size);
-
-// this function performs an O(n) list search where n is memory size
-// improvement: push O(n) down to O(1), e.g. using Boehm's chunk allocator
-uint64_t* get_metadata_if_address_is_valid(uint64_t* context, uint64_t address);
-
-// interface to marking a memory block using an external collector (e.g. tools/boehm-gc.c)
-void mark_block(uint64_t* context, uint64_t address);
-
-void mark_block_selfie(uint64_t* context, uint64_t gc_address);
-void mark_segment(uint64_t* context, uint64_t segment_start, uint64_t segment_end);
-
-// this function scans the heap from two roots (data segment and stack) in O(n^2)
-// where n is memory size; checking if a value is a pointer takes O(n), see above
-// improvement: push O(n^2) down to O(n)
-void mark(uint64_t* context);
-
-void free_block(uint64_t* context, uint64_t* metadata, uint64_t* prev_metadata);
-
-// interface to sweep marked memory blocks using an external collector (e.g. tools/boehm-gc.c)
-void sweep(uint64_t* context);
-
-void sweep_selfie(uint64_t* context);
-
-void gc_collect(uint64_t* context);
-
-void print_gc_profile(uint64_t is_gc_kernel);
-
-// ----------------------- LIBRARY FUNCTIONS -----------------------
-
-uint64_t* gc_malloc(uint64_t size) {
-  return gc_malloc_implementation((uint64_t*) 0, size);
-}
-
-// ------------------------ GLOBAL CONSTANTS -----------------------
-
-uint64_t GC_DISABLED = 0;
-uint64_t GC_ENABLED  = 1;
-
-uint64_t GC_ON = 0; // turn on kernel variant of gc, generate gc library code
-
-uint64_t USE_GC_LIBRARY = 0; // use library variant of gc or not
-
-uint64_t GC_PERIOD = 1000; // gc every so often
-
-uint64_t GC_REUSE = 1; // reuse memory with freelist by default
-
-uint64_t GC_METADATA_SIZE = 32; // 2 * sizeof(uint64_t) + 2 * sizeof(uint64_t*)
-
-uint64_t GC_WORDSIZE = 8; // sizeof(uint64_t) for library variant, otherwise WORDSIZE
-
-uint64_t GC_MARKBIT_UNREACHABLE = 0; // indicating that a memory block is not reachable
-uint64_t GC_MARKBIT_REACHABLE   = 1; // indicating that a memory block is reachable, by root or other reachable block
-
-// ------------------------ GLOBAL VARIABLES -----------------------
-
-uint64_t gc_data_seg_start = 0;
-uint64_t gc_data_seg_end   = 0;
-uint64_t gc_heap_seg_start = 0;
-uint64_t gc_heap_seg_end   = 0;
-
-uint64_t* gc_used_list = (uint64_t*) 0; // pointer to used-list head
-uint64_t* gc_free_list = (uint64_t*) 0; // pointer to free-list head
-
-uint64_t gc_num_gcs_in_period = 0;
-
-uint64_t gc_num_mallocated     = 0;
-uint64_t gc_num_gced_mallocs   = 0;
-uint64_t gc_num_ungced_mallocs = 0;
-uint64_t gc_num_reused_mallocs = 0;
-uint64_t gc_num_collects       = 0;
-uint64_t gc_mem_mallocated     = 0;
-uint64_t gc_mem_blocks         = 0;
-uint64_t gc_mem_metadata       = 0;
-uint64_t gc_mem_reused         = 0;
-uint64_t gc_mem_collected      = 0;
-
-// ------------------------- INITIALIZATION ------------------------
-
-void reset_gc_counters() {
-  gc_num_mallocated     = 0;
-  gc_num_gced_mallocs   = 0;
-  gc_num_ungced_mallocs = 0;
-  gc_num_reused_mallocs = 0;
-  gc_num_collects       = 0;
-  gc_mem_mallocated     = 0;
-  gc_mem_blocks         = 0;
-  gc_mem_metadata       = 0;
-  gc_mem_reused         = 0;
-  gc_mem_collected      = 0;
-}
-
-// -----------------------------------------------------------------
-// -------------------------- MICROKERNEL --------------------------
-// -----------------------------------------------------------------
-
-uint64_t* new_context();
-void      free_context(uint64_t* context);
-uint64_t* delete_context(uint64_t* context, uint64_t* from);
-
-void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt);
-
-uint64_t* create_context(uint64_t* parent, uint64_t* vctxt);
-uint64_t* find_context(uint64_t* parent, uint64_t* vctxt);
-uint64_t* cache_context(uint64_t* vctxt);
-
-void save_context(uint64_t* context);
-
-uint64_t lowest_page(uint64_t page, uint64_t lo);
-uint64_t highest_page(uint64_t page, uint64_t hi);
-void     map_page(uint64_t* context, uint64_t page, uint64_t frame);
-
-void cache_page_table(uint64_t* context, uint64_t* table, uint64_t* parent_table, uint64_t lo, uint64_t hi);
-
-void restore_context(uint64_t* context);
-
-uint64_t pavailable();
-uint64_t pused();
-
-uint64_t* palloc();
-void      pfree(uint64_t* frame);
-
-void map_and_store(uint64_t* context, uint64_t vaddr, uint64_t data);
-
-void map_unmapped_pages(uint64_t* context);
+uint64_t is_valid_segment_read(uint64_t vaddr);
+uint64_t is_valid_segment_write(uint64_t vaddr);
 
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
@@ -2343,11 +2404,6 @@ uint64_t* current_context = (uint64_t*) 0; // context currently running
 
 uint64_t* used_contexts = (uint64_t*) 0; // doubly-linked list of used contexts
 uint64_t* free_contexts = (uint64_t*) 0; // singly-linked list of free contexts
-
-uint64_t allocated_page_frame_memory = 0;
-uint64_t free_page_frame_memory      = 0;
-
-uint64_t next_page_frame = 0;
 
 // ------------------------- INITIALIZATION ------------------------
 
@@ -2362,17 +2418,18 @@ void reset_microkernel() {
 // ---------------------------- KERNEL -----------------------------
 // -----------------------------------------------------------------
 
+uint64_t pavailable();
+uint64_t pused();
+
+uint64_t* palloc();
+void      pfree(uint64_t* frame);
+
+void map_and_store(uint64_t* context, uint64_t vaddr, uint64_t data);
+
 void up_load_binary(uint64_t* context);
 
 uint64_t up_load_string(uint64_t* context, char* s, uint64_t SP);
 void     up_load_arguments(uint64_t* context, uint64_t argc, uint64_t* argv);
-
-char* replace_extension(char* filename, char* suffix, char* extension);
-
-char* boot_level_prefix(char* s);
-char* increment_boot_level_prefix(char* s, char* t);
-
-void boot_loader(uint64_t* context);
 
 uint64_t handle_system_call(uint64_t* context);
 uint64_t handle_page_fault(uint64_t* context);
@@ -2386,8 +2443,16 @@ uint64_t hypster(uint64_t* to_context);
 uint64_t mixter(uint64_t* to_context, uint64_t mix);
 
 uint64_t minmob(uint64_t* to_context);
+void     map_unmapped_pages(uint64_t* context);
 uint64_t minster(uint64_t* to_context);
 uint64_t mobster(uint64_t* to_context);
+
+char* replace_extension(char* filename, char* extension);
+
+char* boot_level_prefix(char* s);
+char* increment_boot_level_prefix(char* s, char* t);
+
+void boot_loader(uint64_t* context);
 
 uint64_t selfie_run(uint64_t machine);
 uint64_t selfie_run_mipsterOS(uint64_t machine);
@@ -2432,6 +2497,13 @@ uint64_t DIPSTER = 5;
 uint64_t RIPSTER = 6;
 uint64_t CAPSTER = 7;
 
+// ------------------------ GLOBAL VARIABLES -----------------------
+
+uint64_t next_page_frame = 0;
+
+uint64_t allocated_page_frame_memory = 0;
+uint64_t free_page_frame_memory      = 0;
+
 // ------------------------- INITIALIZATION ------------------------
 
 void init_kernel () {
@@ -2471,6 +2543,13 @@ char* argument = (char*) 0;
 // ----------------------------- SELFIE ----------------------------
 // -----------------------------------------------------------------
 
+void init_selfie(uint64_t argc, uint64_t* argv);
+
+void init_system();
+void init_target();
+
+void turn_on_gc_library(uint64_t period, char* name);
+
 void experimental_features();
 
 uint64_t exit_selfie(uint64_t exit_code, char* extras);
@@ -2486,6 +2565,8 @@ uint64_t LINUX     = 1;
 uint64_t MACOS     = 2;
 uint64_t WINDOWS   = 3;
 uint64_t BAREMETAL = 4;
+
+// ------------------------ GLOBAL VARIABLES -----------------------
 
 uint64_t OS = 0; // default host operating system is selfie
 
@@ -2550,8 +2631,9 @@ void init_target() {
     if (IS64BITSYSTEM) {
       SIZEOFUINT     = sizeof(uint64_t);
       SIZEOFUINTSTAR = sizeof(uint64_t*);
-      UINT_MAX       = UINT64_MAX;
-      INT_MIN        = INT64_MIN;
+
+      UINT_MAX = UINT64_MAX;
+
       WORDSIZE       = sizeof(uint64_t);
       WORDSIZEINBITS = WORDSIZE * 8;
 
@@ -2572,15 +2654,17 @@ void init_target() {
     if (IS64BITSYSTEM) {
       SIZEOFUINT     = SINGLEWORDSIZE;
       SIZEOFUINTSTAR = SINGLEWORDSIZE;
-      UINT_MAX       = two_to_the_power_of(SINGLEWORDSIZEINBITS) - 1;
-      INT_MIN        = two_to_the_power_of(SINGLEWORDSIZEINBITS - 1);
-      WORDSIZE       = SINGLEWORDSIZE;
+
+      UINT_MAX = two_to_the_power_of(SINGLEWORDSIZEINBITS) - 1;
+
+      WORDSIZE = SINGLEWORDSIZE;
     } else {
       SIZEOFUINT     = sizeof(uint64_t);
       SIZEOFUINTSTAR = sizeof(uint64_t*);
-      UINT_MAX       = UINT64_MAX;
-      INT_MIN        = INT64_MIN;
-      WORDSIZE       = sizeof(uint64_t);
+
+      UINT_MAX = UINT64_MAX;
+
+      WORDSIZE = sizeof(uint64_t);
     }
 
     WORDSIZEINBITS = WORDSIZE * 8;
@@ -2596,6 +2680,8 @@ void init_target() {
     e_ehsize    = 52; // elf header size 52 bytes (ELFCLASS32)
     e_phentsize = 32; // size of program header entry 32 bytes (ELFCLASS32)
   }
+
+  HIGHESTVIRTUALADDRESS = VIRTUALMEMORYSIZE * GIGABYTE - WORDSIZE;
 }
 
 void turn_on_gc_library(uint64_t period, char* name) {
@@ -2880,7 +2966,6 @@ uint64_t atoi(char* s) {
   uint64_t i;
   uint64_t n;
   uint64_t c;
-  uint64_t sign;
 
   // the conversion of the ASCII string in s to its
   // numerical value n begins with the leftmost digit in s
@@ -2892,16 +2977,6 @@ uint64_t atoi(char* s) {
   // load character (one byte) at index i in s from memory requires
   // bit shifting since memory access can only be done at word granularity
   c = load_character(s, i);
-
-  // only used by console argument scanner
-  if (c == '-') {
-    sign = 1;
-
-    i = i + 1;
-
-    c = load_character(s, i);
-  } else
-    sign = 0;
 
   // loop until s is terminated
   while (c != 0) {
@@ -2918,19 +2993,19 @@ uint64_t atoi(char* s) {
     // assert: s contains a decimal number
 
     // use base 10 but detect wrap around
-    if (n < UINT64_MAX / 10)
+    if (n < UINT_MAX / 10)
       n = n * 10 + c;
-    else if (n == UINT64_MAX / 10)
-      if (c <= UINT64_MAX % 10)
+    else if (n == UINT_MAX / 10)
+      if (c <= UINT_MAX % 10)
         n = n * 10 + c;
       else {
-        // s contains a decimal number larger than UINT64_MAX
+        // s contains a decimal number larger than UINT_MAX
         printf("%s: cannot convert out-of-bound number %s\n", selfie_name, s);
 
         exit(EXITCODE_SCANNERERROR);
       }
     else {
-      // s contains a decimal number larger than UINT64_MAX
+      // s contains a decimal number larger than UINT_MAX
       printf("%s: cannot convert out-of-bound number %s\n", selfie_name, s);
 
       exit(EXITCODE_SCANNERERROR);
@@ -2944,17 +3019,7 @@ uint64_t atoi(char* s) {
     c = load_character(s, i);
   }
 
-  if (sign)
-    if (n <= INT64_MIN)
-      return -n;
-    else {
-      // s contains a decimal number smaller than INT64_MIN
-      printf("%s: cannot convert out-of-bound number %s\n", selfie_name, s);
-
-      exit(EXITCODE_SCANNERERROR);
-    }
-  else
-    return n;
+  return n;
 }
 
 char* itoa(uint64_t n, char* s, uint64_t b, uint64_t d, uint64_t a) {
@@ -3082,7 +3147,7 @@ uint64_t write_to_printf(uint64_t fd, uint64_t* buffer, uint64_t bytes_to_write)
       // assert: buffer is null-terminated
       return printf("%s", (char*) buffer);
 
-  return sign_extend(write(fd, buffer, bytes_to_write), SYSCALL_BITWIDTH);
+  return write(fd, buffer, bytes_to_write);
 }
 
 void put_character(char c) {
@@ -3775,7 +3840,7 @@ void get_symbol() {
               if (integer_is_signed)
                 syntax_error_message("signed integer out of bound");
               else
-                syntax_error_message("unsigned integer out of bound");
+                syntax_error_message("integer out of bound");
 
               exit(EXITCODE_SCANNERERROR);
             }
@@ -3791,17 +3856,12 @@ void get_symbol() {
 
           literal = atoi(integer);
 
-          if (integer_is_signed) {
-            if (literal > INT_MIN) {
-              syntax_error_message("signed integer out of target bound");
+          if (integer_is_signed)
+            if (literal > INT64_MIN) {
+                syntax_error_message("signed integer out of bound");
 
-              exit(EXITCODE_SCANNERERROR);
-            }
-          } else if (literal > UINT_MAX) {
-            syntax_error_message("unsigned integer out of target bound");
-
-            exit(EXITCODE_SCANNERERROR);
-          }
+                exit(EXITCODE_SCANNERERROR);
+              }
         }
 
         symbol = SYM_INTEGER;
@@ -6118,8 +6178,8 @@ void emit_bootstrapping() {
   if (code_size % WORDSIZE != 0)
     emit_nop();
 
-  // start of data segment is page-aligned for clarity
-  data_start = round_up(code_start + code_size, PAGESIZE);
+  // start of data segment must be page-aligned for ELF program header
+  data_start = round_up(code_start + code_size, p_align);
 
   // calculate global pointer value
   gp_value = data_start + data_size;
@@ -6271,6 +6331,8 @@ void selfie_compile() {
   emit_exit();
   emit_read();
   emit_write();
+  emit_fork();
+  emit_wait();
   emit_open();
 
   emit_malloc();
@@ -7192,27 +7254,16 @@ uint64_t* touch(uint64_t* memory, uint64_t bytes) {
   return memory;
 }
 
-uint64_t* allocate_elf_header(uint64_t size) {
-  // allocate and map (on all boot levels) zeroed memory for ELF headers, preparing
+uint64_t* allocate_elf_header() {
+  // allocate and map (on all boot levels) zeroed memory for ELF header preparing
   // read calls (memory must be mapped) and write calls (memory must be mapped and zeroed)
-  return touch(zmalloc(size), size);
-}
-
-uint64_t get_elf_header_size() {
-  return e_ehsize + e_phnum * e_phentsize;
+  return touch(zmalloc(ELF_HEADER_SIZE), ELF_HEADER_SIZE);
 }
 
 uint64_t* encode_elf_header() {
   uint64_t* header;
 
-  // entry point compatible with pk kernel
-  e_entry = PK_CODE_START;
-
-  // RISC-U binaries have two program header entries
-  e_phnum = 2;
-
-  // allocate page for alignment of code and data segments
-  header = allocate_elf_header(ELF_HEADER_SIZE);
+  header = allocate_elf_header();
 
   // store all data necessary for creating a minimal and valid file and program header
 
@@ -7252,21 +7303,21 @@ uint64_t* encode_elf_header() {
     store_word(header, 48, 0, e_shnum + left_shift(e_shstrndx, 16));
   }
 
-  p_type = PT_LOAD;
+  // start of segments have to be aligned in the binary file
 
-  p_flags  = PF_RX;
-  p_offset = ELF_HEADER_SIZE;
+  // assert: ELF_HEADER_SIZE % p_align == 0
+
+  p_flags  = 5; // code segment attributes are RE
+  p_offset = ELF_HEADER_SIZE; // must match binary format
   p_vaddr  = code_start;
-  p_paddr  = code_start;
   p_filesz = code_size;
   p_memsz  = code_size;
 
   encode_elf_program_header(header, 0);
 
-  p_flags  = PF_RW;
-  p_offset = ELF_HEADER_SIZE + round_up(code_size, PAGESIZE);
+  p_flags  = 6; // data segment attributes are RW
+  p_offset = ELF_HEADER_SIZE + round_up(code_size, p_align); // must match binary format
   p_vaddr  = data_start;
-  p_paddr  = data_start;
   p_filesz = data_size;
   p_memsz  = data_size;
 
@@ -7275,10 +7326,23 @@ uint64_t* encode_elf_header() {
   return header;
 }
 
+void decode_elf_header(uint64_t* header) {
+  EI_CLASS = get_bits(load_word(header, 4, 0), 0, 8);
+
+  if (EI_CLASS == ELFCLASS64)
+    IS64BITTARGET = 1;
+  else
+    IS64BITTARGET = 0;
+}
+
+uint64_t get_elf_program_header_offset(uint64_t ph_index) {
+  return e_ehsize + e_phentsize * ph_index;
+}
+
 void encode_elf_program_header(uint64_t* header, uint64_t ph_index) {
   uint64_t ph_offset;
 
-  ph_offset = e_ehsize + e_phentsize * ph_index;
+  ph_offset = get_elf_program_header_offset(ph_index);
 
   if (EI_CLASS == ELFCLASS64) {
     // RISC-U ELF64 program header
@@ -7302,96 +7366,51 @@ void encode_elf_program_header(uint64_t* header, uint64_t ph_index) {
   }
 }
 
-uint64_t validate_elf_file_header_top(uint64_t* header) {
-  uint64_t magic_number;
-  uint64_t ei_class;
-
-  magic_number = load_word(header, 0, 0);
-
-  if (get_bits(magic_number, 0, 8) == EI_MAG0)
-    if (get_bits(magic_number, 8, 8) == EI_MAG1)
-      if (get_bits(magic_number, 16, 8) == EI_MAG2)
-        if (get_bits(magic_number, 24, 8) == EI_MAG3) {
-          ei_class = get_bits(load_word(header, 4, 0), 0, 8);
-
-          if (ei_class == ELFCLASS64) {
-            IS64BITTARGET = 1;
-
-            return 1;
-          } else if (ei_class == ELFCLASS32) {
-            IS64BITTARGET = 0;
-
-            return 1;
-          }
-        }
-
-  return 0;
+void decode_elf_program_header(uint64_t* header, uint64_t ph_index) {
+  if (EI_CLASS == ELFCLASS64)
+    p_filesz = load_word(header, get_elf_program_header_offset(ph_index) + 32, 1);
+  else
+    p_filesz = load_word(header, get_elf_program_header_offset(ph_index) + 16, 0);
 }
 
-uint64_t decode_elf_file_header(uint64_t* header) {
-  if (EI_CLASS == ELFCLASS64) {
-    if (get_bits(load_word(header, 48, 1), 32, 16) == e_ehsize)
-      if (get_bits(load_word(header, 48, 1), 48, 16) == e_phentsize) {
-        e_entry = load_word(header, 24, 1);
-        e_phnum = get_bits(load_word(header, 56, 1), 0, 16);
+uint64_t validate_elf_header(uint64_t* header) {
+  uint64_t* valid_header;
+  uint64_t i;
 
-        return 1;
-      }
-  } else if (EI_CLASS == ELFCLASS32) {
-    if (get_bits(load_word(header, 40, 0), 0, 16) == e_ehsize)
-      if (get_bits(load_word(header, 40, 0), 16, 16) == e_phentsize) {
-        e_entry = load_word(header, 24, 0);
-        e_phnum = get_bits(load_word(header, 44, 0), 0, 16);
+  decode_elf_header(header);
 
-        return 1;
-      }
+  // must match binary bootstrapping
+  code_start = PK_CODE_START;
+
+  decode_elf_program_header(header, 0);
+
+  code_size = p_filesz;
+
+  decode_elf_program_header(header, 1);
+
+  data_size = p_filesz;
+
+  // must match binary bootstrapping
+  data_start = round_up(code_start + code_size, p_align);
+
+  if (code_size > MAX_CODE_SIZE)
+    return 0;
+
+  if (data_size > MAX_DATA_SIZE)
+    return 0;
+
+  valid_header = encode_elf_header();
+
+  i = 0;
+
+  while (i < ELF_HEADER_SIZE / sizeof(uint64_t)) {
+    if (*(header + i) != *(valid_header + i))
+      return 0;
+
+    i = i + 1;
   }
 
-  return 0;
-}
-
-uint64_t decode_elf_program_header(uint64_t* header) {
-  uint64_t vaddr;
-  uint64_t filesz;
-  uint64_t memsz;
-
-  if (EI_CLASS == ELFCLASS64) {
-    vaddr  = load_word(header, 16, 1);
-    filesz = load_word(header, 32, 1);
-    memsz  = load_word(header, 40, 1);
-
-    if (vaddr == load_word(header, 24, 1))
-      // p_vaddr == p_paddr
-      if (filesz <= memsz) {
-        p_type   = get_bits(load_word(header, 0, 1), 0, 32);
-        p_flags  = get_bits(load_word(header, 0, 1), 32, 32);
-        p_offset = load_word(header, 8, 1);
-        p_vaddr  = vaddr;
-        p_filesz = filesz;
-        p_memsz  = memsz;
-
-        return 1;
-      }
-  } else if (EI_CLASS == ELFCLASS32) {
-    vaddr  = load_word(header, 8, 0);
-    filesz = load_word(header, 16, 0);
-    memsz  = load_word(header, 20, 0);
-
-    if (vaddr == load_word(header, 12, 0))
-      // p_vaddr == p_paddr
-      if (filesz <= memsz) {
-        p_type   = load_word(header, 0, 0);
-        p_offset = load_word(header, 4, 0);
-        p_vaddr  = vaddr;
-        p_filesz = filesz;
-        p_memsz  = memsz;
-        p_flags  = load_word(header, 24, 0);
-
-        return 1;
-      }
-  }
-
-  return 0;
+  return 1;
 }
 
 uint64_t open_write_only(char* name, uint64_t mode) {
@@ -7432,7 +7451,7 @@ void selfie_output(char* filename) {
     exit(EXITCODE_IOERROR);
   }
 
-  code_size_with_padding = round_up(code_size, PAGESIZE);
+  code_size_with_padding = round_up(code_size, p_align);
 
   touch(code_binary, code_size_with_padding);
 
@@ -7455,27 +7474,20 @@ void selfie_output(char* filename) {
   }
 
   printf("%s: %lu bytes with %lu %lu-bit RISC-U instructions and %lu bytes of data written into %s\n", selfie_name,
-    ELF_HEADER_SIZE + code_size_with_padding + data_size,
+    ELF_HEADER_SIZE + code_size + data_size,
     code_size / INSTRUCTIONSIZE,
     WORDSIZEINBITS,
     data_size,
     binary_name);
 }
 
-void selfie_load(char* filename) {
+void selfie_load() {
   uint64_t fd;
-  uint64_t* ELF_file_header;
+  uint64_t* ELF_header;
   uint64_t number_of_read_bytes;
-  uint64_t code_file_offset;
-  uint64_t code_file_size;
-  uint64_t data_file_offset;
-  uint64_t data_file_size;
-  uint64_t* ELF_program_header;
-  uint64_t i;
-  uint64_t number_of_read_bytes_in_total;
-  uint64_t to_be_read_bytes;
+  uint64_t code_size_with_padding;
 
-  binary_name = filename;
+  binary_name = get_argument();
 
   // assert: binary_name is mapped and not longer than MAX_FILENAME_LENGTH
 
@@ -7490,113 +7502,47 @@ void selfie_load(char* filename) {
   // no source line numbers in binaries
   reset_binary();
 
-  // allocate and map (on all boot levels) memory for reading into it
-  ELF_file_header = touch(smalloc(MAX_BINARY_SIZE), MAX_BINARY_SIZE);
+  // this call makes sure ELF_header is mapped for reading into it
+  ELF_header = allocate_elf_header();
 
-  number_of_read_bytes = read(fd, ELF_file_header, 8);
+  // make sure code and data binaries are also mapped for reading into them
+  code_binary = touch(smalloc(MAX_CODE_SIZE), MAX_CODE_SIZE);
+  data_binary = touch(smalloc(MAX_DATA_SIZE), MAX_DATA_SIZE);
 
-  if (number_of_read_bytes == 8) {
-    if (validate_elf_file_header_top(ELF_file_header)) {
+  number_of_read_bytes = read(fd, ELF_header, ELF_HEADER_SIZE);
+
+  if (number_of_read_bytes == ELF_HEADER_SIZE) {
+    if (validate_elf_header(ELF_header)) {
       init_target();
+
       reset_disassembler();
 
-      number_of_read_bytes = read(fd, (uint64_t*) ((uint64_t) ELF_file_header + 8), e_ehsize - 8);
+      code_size_with_padding = round_up(code_size, p_align);
 
-      if (number_of_read_bytes == e_ehsize - 8) {
-        if (decode_elf_file_header(ELF_file_header)) {
-          code_file_offset = 0;
-          code_file_size   = 0;
-          data_file_offset = 0;
-          data_file_size   = 0;
+      number_of_read_bytes = sign_extend(read(fd, code_binary, code_size_with_padding), SYSCALL_BITWIDTH);
 
-          ELF_program_header = (uint64_t*) ((uint64_t) ELF_file_header + e_ehsize);
+      if (number_of_read_bytes == code_size_with_padding) {
+        number_of_read_bytes = sign_extend(read(fd, data_binary, data_size), SYSCALL_BITWIDTH);
 
-          i = 0;
+        if (number_of_read_bytes == data_size) {
+          // check if we are really at EOF
+          if (read(fd, binary_buffer, sizeof(uint64_t)) == 0) {
+            printf("%s: %lu bytes with %lu %lu-bit RISC-U instructions and %lu bytes of data loaded from %s\n",
+              selfie_name,
+              ELF_HEADER_SIZE + code_size + data_size,
+              code_size / INSTRUCTIONSIZE,
+              WORDSIZEINBITS,
+              data_size,
+              binary_name);
 
-          while (i < e_phnum) {
-            number_of_read_bytes = read(fd, ELF_program_header, e_phentsize);
-
-            if (number_of_read_bytes == e_phentsize) {
-              if (decode_elf_program_header(ELF_program_header)) {
-                if (p_type == PT_LOAD) {
-                  if (p_flags == PF_RX) {
-                    // assert: code segment
-                    code_file_offset = p_offset;
-                    code_file_size   = p_filesz;
-
-                    code_start = p_vaddr;
-                    code_size  = p_memsz;
-                  } else if (p_flags == PF_RW) {
-                    // assert: data segment
-                    data_file_offset = p_offset;
-                    data_file_size   = p_filesz;
-
-                    data_start = p_vaddr;
-                    data_size  = p_memsz;
-                  }
-                }
-              }
-            }
-
-            ELF_program_header = (uint64_t*) ((uint64_t) ELF_program_header + e_phentsize);
-
-            i = i + 1;
+            return;
           }
-
-          if (code_file_size > 0)
-            if (code_file_size == code_size)
-              if (data_file_size > 0)
-                if (code_file_offset + code_file_size <= data_file_offset) {
-                  code_binary = (uint64_t*) ((uint64_t) ELF_file_header + code_file_offset);
-
-                  number_of_read_bytes_in_total = get_elf_header_size();
-
-                  to_be_read_bytes = code_file_offset + code_file_size - number_of_read_bytes_in_total;
-
-                  if (to_be_read_bytes + number_of_read_bytes_in_total <= MAX_BINARY_SIZE) {
-                    number_of_read_bytes = sign_extend(
-                      read(fd,
-                        (uint64_t*) ((uint64_t) ELF_file_header + number_of_read_bytes_in_total),
-                        to_be_read_bytes),
-                      SYSCALL_BITWIDTH);
-
-                    if (number_of_read_bytes == to_be_read_bytes) {
-                      number_of_read_bytes_in_total = number_of_read_bytes_in_total + number_of_read_bytes;
-
-                      data_binary = (uint64_t*) ((uint64_t) ELF_file_header + data_file_offset);
-
-                      to_be_read_bytes = data_file_offset + data_file_size - number_of_read_bytes_in_total;
-
-                      if (to_be_read_bytes + number_of_read_bytes_in_total <= MAX_BINARY_SIZE) {
-                        number_of_read_bytes = sign_extend(
-                          read(fd,
-                            (uint64_t*) ((uint64_t) ELF_file_header + number_of_read_bytes_in_total),
-                            to_be_read_bytes),
-                          SYSCALL_BITWIDTH);
-
-                        if (number_of_read_bytes == to_be_read_bytes) {
-                          number_of_read_bytes_in_total = number_of_read_bytes_in_total + number_of_read_bytes;
-
-                          printf("%s: %lu bytes with %lu %lu-bit RISC-U instructions and %lu bytes of data loaded from %s\n",
-                            selfie_name,
-                            number_of_read_bytes_in_total,
-                            code_file_size / INSTRUCTIONSIZE,
-                            WORDSIZEINBITS,
-                            data_file_size,
-                            binary_name);
-
-                          return;
-                        }
-                      }
-                    }
-                  }
-                }
         }
       }
     }
   }
 
-  printf("%s: failed to load and decode binary from input file %s\n", selfie_name, binary_name);
+  printf("%s: failed to load binary from input file %s\n", selfie_name, binary_name);
 
   exit(EXITCODE_IOERROR);
 }
@@ -7636,6 +7582,10 @@ void implement_exit(uint64_t* context) {
   signed_int_exit_code = *(get_regs(context) + REG_A0);
 
   set_exit_code(context, sign_shrink(signed_int_exit_code, SYSCALL_BITWIDTH));
+  if(get_parent_context(context) != (uint64_t*) 0){
+    set_pid_child_exited(get_parent_context(context),get_context_id(context));
+    set_child_exited(get_parent_context(context),get_exit_code(context));
+  }
 }
 
 void emit_read() {
@@ -7758,7 +7708,7 @@ void implement_read(uint64_t* context) {
     IO_buffer = touch(smalloc(IO_buffer_size), IO_buffer_size);
   }
 
-  // read syscall may read less than size bytes
+  // read syscal may read less than size bytes
   // zero buffer up to integer-aligned size
   zero_memory(IO_buffer, round_up(size, sizeof(uint64_t)));
 
@@ -7782,6 +7732,136 @@ void implement_read(uint64_t* context) {
     println();
   }
 }
+
+void emit_fork() {
+  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fork"),
+    0, PROCEDURE, UINT64_T, 0, code_size);
+
+  emit_addi(REG_A7, REG_ZR, SYSCALL_FORK);
+
+  emit_ecall();
+
+  emit_jalr(REG_ZR, REG_RA, 0);
+}
+
+
+void implement_fork(uint64_t* context) {
+  uint64_t * child_context;
+  uint64_t vaddr;
+  uint64_t itr;
+  child_context = create_context(MY_CONTEXT,0);
+  set_context_id(child_context);
+  set_parent_context(child_context,context);
+  set_number_children(get_parent_context(child_context), get_number_children(get_parent_context(child_context))+1);
+  set_name(child_context,get_name(context));
+  set_pc(child_context,get_pc(context));
+  
+  set_lowest_lo_page(child_context,get_lowest_lo_page(context));
+  set_highest_lo_page(child_context,get_highest_lo_page(context));
+  set_lowest_hi_page(child_context, get_lowest_hi_page(context));
+  set_highest_hi_page(child_context, get_highest_hi_page(context));
+  
+  set_code_seg_start(child_context,get_code_seg_start(context));
+  set_code_seg_size(child_context,get_code_seg_size(context));
+
+  set_data_seg_start(child_context,get_data_seg_start(context));
+  set_data_seg_size(child_context,get_data_seg_size(context));
+//nombre pc, regs, data, heap, stack
+  set_heap_seg_start(child_context,get_heap_seg_start(context));
+  set_program_break(child_context,get_program_break(context));
+
+  //Code
+  vaddr = get_code_seg_start(context);
+  while (vaddr < get_code_seg_start(context) + get_code_seg_size(context)) {
+    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
+      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
+    }/*else{
+      printf("wafada");
+    }*/
+    vaddr = vaddr + WORDSIZE;
+  }
+  //Data
+  vaddr = get_data_seg_start(context);
+  while (vaddr < get_data_seg_start(context) + get_data_seg_size(context)) {
+    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
+      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
+    }/*else{
+      printf("wafada");
+    }*/
+    vaddr = vaddr + WORDSIZE;
+  }
+  //Heap
+  vaddr = get_heap_seg_start(context);
+  while (vaddr < get_program_break(context)) {
+    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
+      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
+    }/*else{
+      printf("wafada");
+    }*/
+    vaddr = vaddr + WORDSIZE;
+  }
+
+  vaddr = *(get_regs(context) + REG_SP);
+  while (vaddr <= HIGHESTVIRTUALADDRESS) {
+    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
+      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
+    }/*else{
+      printf("wafada");
+    }*/
+    vaddr = vaddr + WORDSIZE;
+  }
+  
+  itr = 0;
+
+  while(itr < NUMBEROFREGISTERS){
+    *(get_regs(child_context)+itr) = *(get_regs(context)+itr);
+    itr = itr + 1;
+  }
+
+  *(get_regs(child_context)+REG_A0) = (uint64_t) 0;
+  *(get_regs(context) + REG_A0) = get_context_id(child_context);
+
+  set_pc(child_context,get_pc(child_context)+INSTRUCTIONSIZE);
+  set_pc(context,get_pc(context)+INSTRUCTIONSIZE);
+
+  
+}
+
+void emit_wait() {
+  create_symbol_table_entry(GLOBAL_TABLE, string_copy("wait"),
+    0, PROCEDURE, UINT64_T, 1, code_size);
+
+  emit_load(REG_A0, REG_SP, 0); // wstatus
+  emit_addi(REG_SP, REG_SP, WORDSIZE);
+
+  emit_addi(REG_A7, REG_ZR, SYSCALL_WAIT);
+
+  emit_ecall();
+
+  emit_jalr(REG_ZR, REG_RA, 0);
+}
+
+
+void implement_wait(uint64_t* context) {
+  //wstatus -> exitcode
+  //a0 -> childpid |-1
+  uint64_t wstatus;
+  wstatus = *(get_regs(context) + REG_A0);
+  if(get_pid_child_exited(context) != (uint64_t)0){ 
+    *(get_regs(context)+REG_A0) = get_pid_child_exited(context);
+    map_and_store(context, wstatus, 28*get_child_exited(context));
+    set_pid_child_exited(context,0);
+    set_child_exited(context, 0);
+    set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
+  }else if(get_number_children(context) == 0){ //Soy el padre y no tengo hijos
+    *(get_regs(context)+REG_A0) = -1;
+    map_and_store(context,wstatus,(uint64_t) 0);
+    set_pid_child_exited(context,0);
+    set_child_exited(context, 0);
+    set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
+  }
+}
+
 
 void emit_write() {
   create_symbol_table_entry(GLOBAL_TABLE, string_copy("write"),
@@ -7840,7 +7920,7 @@ void implement_write(uint64_t* context) {
   *(IO_buffer + size / sizeof(uint64_t)) = 0;
 
   if (copy_buffer(context, vbuffer, IO_buffer, size, 0))
-    *(get_regs(context) + REG_A0) = sign_shrink(write_to_printf(fd, IO_buffer, size), SYSCALL_BITWIDTH);
+    *(get_regs(context) + REG_A0) = write_to_printf(fd, IO_buffer, size);
   else
     *(get_regs(context) + REG_A0) = sign_shrink(-1, SYSCALL_BITWIDTH);
 
@@ -8073,7 +8153,7 @@ void implement_brk(uint64_t* context) {
 
 uint64_t is_boot_level_zero() {
   // C99 malloc(0) returns either a null pointer or a unique pointer,
-  // see pubs.opengroup.org/onlinepubs/9699919799
+  // see http://pubs.opengroup.org/onlinepubs/9699919799
   // in contrast, selfie's malloc(0) returns the same not null address,
   // if malloc(0) is called consecutively.
   uint64_t first_malloc;
@@ -8109,33 +8189,35 @@ void emit_switch() {
 
   emit_ecall();
 
-  // find context from which we are switching back in REG_A6 and save in return register
+  // save context from which we are switching here in return register
   emit_addi(REG_A0, REG_A6, 0);
 
   emit_jalr(REG_ZR, REG_RA, 0);
 }
 
-void do_switch(uint64_t* to_context, uint64_t timeout) {
-  // provide context from which we are switching in REG_A6 to avoid overwriting REG_A0
-  if (get_parent(current_context) != MY_CONTEXT)
-    *(registers + REG_A6) = (uint64_t) get_virtual_context(current_context);
+uint64_t* do_switch(uint64_t* from_context, uint64_t* to_context, uint64_t timeout) {
+  restore_context(to_context);
+
+  // use REG_A6 instead of REG_A0 for returning from_context
+  // to avoid overwriting REG_A0 in to_context
+  if (get_parent(from_context) != MY_CONTEXT)
+    *(registers + REG_A6) = (uint64_t) get_virtual_context(from_context);
   else
-    // TODO: support global machine-context identifiers
-    *(registers + REG_A6) = (uint64_t) current_context;
+    *(registers + REG_A6) = (uint64_t) from_context;
 
   write_register(REG_A6);
 
+  timer = timeout;
+
   if (debug_switch) {
-    printf("%s: switching from context %s to context %s", selfie_name,
-      get_name(current_context), get_name(to_context));
-    if (timeout != TIMEROFF)
-      printf(" to execute %lu instructions", timeout);
+    printf("%s: switched from context %s to context %s", selfie_name,
+      get_name(from_context), get_name(to_context));
+    if (timer != TIMEROFF)
+      printf(" to execute %lu instructions", timer);
     println();
   }
 
-  current_context = to_context;
-
-  timer = timeout;
+  return to_context;
 }
 
 void implement_switch() {
@@ -8163,9 +8245,7 @@ void implement_switch() {
   // cache context on my boot level before switching
   to_context = cache_context(to_context);
 
-  restore_context(to_context);
-
-  do_switch(to_context, timeout);
+  current_context = do_switch(current_context, to_context, timeout);
 
   if (debug_syscalls) {
     printf(" -> ");
@@ -8175,9 +8255,7 @@ void implement_switch() {
 }
 
 uint64_t* mipster_switch(uint64_t* to_context, uint64_t timeout) {
-  restore_context(to_context);
-
-  do_switch(to_context, timeout);
+  current_context = do_switch(current_context, to_context, timeout);
 
   run_until_exception();
 
@@ -8545,7 +8623,7 @@ void store_physical_memory(uint64_t* paddr, uint64_t data) {
   *paddr = data;
 }
 
-uint64_t root_PDE_offset(uint64_t page) {
+uint64_t get_root_PDE_offset(uint64_t page) {
   // with 4GB (2^32B) virtual memory there are 2^(32-12) 4KB (2^12B) pages;
   // in a two-level page table with 4KB (2^12B) pages as leaf nodes and
   // 64-bit pointers (2^3B), each leaf node accommodates 2^(12-3) PTEs;
@@ -8553,12 +8631,12 @@ uint64_t root_PDE_offset(uint64_t page) {
   return page / NUMBEROFLEAFPTES; // right shift by 9 bits
 }
 
-uint64_t leaf_PTE_offset(uint64_t page) {
+uint64_t get_leaf_PTE_offset(uint64_t page) {
   // bits 0 through 8 encode the leaf PTE (page table entry) offset
-  return page - root_PDE_offset(page) * NUMBEROFLEAFPTES; // extract the 9 LSBs
+  return page - get_root_PDE_offset(page) * NUMBEROFLEAFPTES; // extract the 9 LSBs
 }
 
-uint64_t* get_PTE_address(uint64_t* parent_table, uint64_t* table, uint64_t page) {
+uint64_t* get_PTE_address_for_page(uint64_t* parent_table, uint64_t* table, uint64_t page) {
   uint64_t* leaf_pt;
 
   // assert: 0 <= page < NUMBEROFPAGES
@@ -8569,25 +8647,23 @@ uint64_t* get_PTE_address(uint64_t* parent_table, uint64_t* table, uint64_t page
   else {
     // to get leaf page table, root page directory access is required!
     if (parent_table == (uint64_t*) 0)
-      leaf_pt = (uint64_t*) *(table + root_PDE_offset(page));
+      leaf_pt = (uint64_t*) *(table + get_root_PDE_offset(page));
     else
       // table is in address space of parent_table
-      leaf_pt = (uint64_t*) load_virtual_memory(parent_table, (uint64_t) (table + root_PDE_offset(page)));
+      leaf_pt = (uint64_t*) load_virtual_memory(parent_table, (uint64_t) (table + get_root_PDE_offset(page)));
 
     if (leaf_pt == (uint64_t*) 0)
       return (uint64_t*) 0;
     else
       // again, just pointer arithmetic, no access!
-      return leaf_pt + leaf_PTE_offset(page);
+      return leaf_pt + get_leaf_PTE_offset(page);
   }
 }
 
-uint64_t get_page_frame(uint64_t* table, uint64_t page) {
+uint64_t get_frame_for_page(uint64_t* table, uint64_t page) {
   uint64_t* PTE_address;
 
-  // TODO: translation lookaside buffer (TLB)
-
-  PTE_address = get_PTE_address(0, table, page);
+  PTE_address = get_PTE_address_for_page(0, table, page);
 
   if (PTE_address == (uint64_t*) 0)
     return 0;
@@ -8595,14 +8671,8 @@ uint64_t get_page_frame(uint64_t* table, uint64_t page) {
     return (uint64_t) *PTE_address;
 }
 
-uint64_t is_page_mapped(uint64_t* table, uint64_t page) {
-  if (get_page_frame(table, page) != 0)
-    return 1;
-  else
-    return 0;
-}
-
-void set_page_frame(uint64_t* table, uint64_t page, uint64_t frame) {
+void set_PTE_for_page(uint64_t* table, uint64_t page, uint64_t frame) {
+  uint64_t  root_PDE_offset;
   uint64_t* leaf_pt;
 
   // assert: 0 <= page < NUMBEROFPAGES
@@ -8610,29 +8680,38 @@ void set_page_frame(uint64_t* table, uint64_t page, uint64_t frame) {
   if (PAGETABLETREE == 0)
     *(table + page) = frame;
   else {
-    leaf_pt = (uint64_t*) *(table + root_PDE_offset(page));
+    root_PDE_offset = get_root_PDE_offset(page);
+
+    leaf_pt = (uint64_t*) *(table + root_PDE_offset);
 
     if (leaf_pt == (uint64_t*) 0) {
       leaf_pt = palloc(); // 4KB leaf page table
 
-      *(table + root_PDE_offset(page)) = (uint64_t) leaf_pt;
+      *(table + root_PDE_offset) = (uint64_t) leaf_pt;
     }
 
-    *(leaf_pt + leaf_PTE_offset(page)) = frame;
+    *(leaf_pt + get_leaf_PTE_offset(page)) = frame;
   }
 }
 
-uint64_t page_of_virtual_address(uint64_t vaddr) {
+uint64_t is_page_mapped(uint64_t* table, uint64_t page) {
+  if (get_frame_for_page(table, page) != 0)
+    return 1;
+  else
+    return 0;
+}
+
+uint64_t get_page_of_virtual_address(uint64_t vaddr) {
   return vaddr / PAGESIZE;
 }
 
-uint64_t virtual_address_of_page(uint64_t page) {
+uint64_t get_virtual_address_of_page_start(uint64_t page) {
   return page * PAGESIZE;
 }
 
 uint64_t is_virtual_address_valid(uint64_t vaddr, uint64_t alignment) {
-  // is address in range?
-  if (vaddr <= HIGHESTVIRTUALADDRESS)
+  // is address virtual?
+  if (vaddr <= HIGHESTVIRTUALADDRESS + (WORDSIZE - alignment))
     // is address aligned?
     if (vaddr % alignment == 0)
       return 1;
@@ -8643,10 +8722,10 @@ uint64_t is_virtual_address_valid(uint64_t vaddr, uint64_t alignment) {
 uint64_t is_virtual_address_mapped(uint64_t* table, uint64_t vaddr) {
   // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
 
-  return is_page_mapped(table, page_of_virtual_address(vaddr));
+  return is_page_mapped(table, get_page_of_virtual_address(vaddr));
 }
 
-uint64_t* translate_virtual_to_physical(uint64_t* table, uint64_t vaddr) {
+uint64_t* tlb(uint64_t* table, uint64_t vaddr) {
   uint64_t page;
   uint64_t frame;
   uint64_t paddr;
@@ -8654,17 +8733,16 @@ uint64_t* translate_virtual_to_physical(uint64_t* table, uint64_t vaddr) {
   // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
   // assert: is_virtual_address_mapped(table, vaddr) == 1
 
-  // assert: page is PAGESIZE-aligned in virtual memory
-  page = page_of_virtual_address(vaddr);
+  page = get_page_of_virtual_address(vaddr);
 
-  // assert: frame is PAGEFRAMESIZE-aligned in physical memory
-  frame = get_page_frame(table, page);
+  frame = get_frame_for_page(table, page);
 
-  // translate virtual address to physical address
-  paddr = (vaddr - page * PAGESIZE) * (PAGEFRAMESIZE / PAGESIZE) + frame;
+  // map virtual address to physical address
+  // (single word on 32-bit target occupies double word on 64-bit system)
+  paddr = (vaddr - page * PAGESIZE) * (sizeof(uint64_t) / WORDSIZE) + frame;
 
-  if (debug_translation)
-    printf("%s: translating:\n vaddr: 0x%08lX\n page: 0x%04lX\n frame: 0x%08lX\n paddr: 0x%08lX\n", selfie_name,
+  if (debug_tlb)
+    printf("%s: tlb access:\n vaddr: 0x%08lX\n page: 0x%04lX\n frame: 0x%08lX\n paddr: 0x%08lX\n", selfie_name,
       vaddr,
       page,
       frame,
@@ -8677,21 +8755,21 @@ uint64_t load_virtual_memory(uint64_t* table, uint64_t vaddr) {
   // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
   // assert: is_virtual_address_mapped(table, vaddr) == 1
 
-  return load_physical_memory(translate_virtual_to_physical(table, vaddr));
+  return load_physical_memory(tlb(table, vaddr));
 }
 
 void store_virtual_memory(uint64_t* table, uint64_t vaddr, uint64_t data) {
   // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
   // assert: is_virtual_address_mapped(table, vaddr) == 1
 
-  store_physical_memory(translate_virtual_to_physical(table, vaddr), data);
+  store_physical_memory(tlb(table, vaddr), data);
 }
 
 uint64_t load_cached_virtual_memory(uint64_t* table, uint64_t vaddr) {
   if (L1_CACHE_ENABLED)
     // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
     // assert: is_virtual_address_mapped(table, vaddr) == 1
-    return load_data_from_cache(vaddr, (uint64_t) translate_virtual_to_physical(table, vaddr));
+    return load_data_from_cache(vaddr, (uint64_t) tlb(table, vaddr));
   else
     return load_virtual_memory(table, vaddr);
 }
@@ -8700,7 +8778,7 @@ void store_cached_virtual_memory(uint64_t* table, uint64_t vaddr, uint64_t data)
   if (L1_CACHE_ENABLED)
     // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
     // assert: is_virtual_address_mapped(table, vaddr) == 1
-    store_data_in_cache(vaddr, (uint64_t) translate_virtual_to_physical(table, vaddr), data);
+    store_data_in_cache(vaddr, (uint64_t) tlb(table, vaddr), data);
   else
     store_virtual_memory(table, vaddr, data);
 }
@@ -8709,9 +8787,631 @@ uint64_t load_cached_instruction_word(uint64_t* table, uint64_t vaddr) {
   if (L1_CACHE_ENABLED)
     // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
     // assert: is_virtual_address_mapped(table, vaddr) == 1
-    return load_instruction_from_cache(vaddr, (uint64_t) translate_virtual_to_physical(table, vaddr));
+    return load_instruction_from_cache(vaddr, (uint64_t) tlb(table, vaddr));
   else
     return load_virtual_memory(table, vaddr);
+}
+
+// -----------------------------------------------------------------
+// ---------------------- GARBAGE COLLECTOR ------------------------
+// -----------------------------------------------------------------
+
+void emit_fetch_stack_pointer() {
+  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fetch_stack_pointer"),
+    0, PROCEDURE, UINT64_T, 0, code_size);
+
+  emit_add(REG_A0, REG_ZR, REG_SP);
+
+  emit_jalr(REG_ZR, REG_RA, 0);
+}
+
+void emit_fetch_global_pointer() {
+  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fetch_global_pointer"),
+    0, PROCEDURE, UINT64_T, 0, code_size);
+
+  emit_add(REG_A0, REG_ZR, REG_GP);
+
+  emit_jalr(REG_ZR, REG_RA, 0);
+}
+
+void emit_fetch_data_segment_size_interface() {
+  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fetch_data_segment_size"),
+    0, PROCEDURE, UINT64_T, 0, code_size);
+
+  // up to three instructions needed to load data segment size but is not yet known
+
+  emit_nop();
+  emit_nop();
+  emit_nop();
+
+  emit_jalr(REG_ZR, REG_RA, 0);
+}
+
+void emit_fetch_data_segment_size_implementation(uint64_t fetch_dss_code_location) {
+  uint64_t saved_code_size;
+
+  // set code emission to fetch_data_segment_size
+  saved_code_size = code_size;
+  code_size       = fetch_dss_code_location;
+
+  // assert: emitting no more than 3 instructions
+
+  // load data segment size into A0 (size is independent of entry point)
+  load_small_and_medium_integer(REG_A0, data_size);
+
+  // discount NOPs in profile that were generated for fetch_data_segment_size
+  ic_addi = ic_addi - (code_size - fetch_dss_code_location) / INSTRUCTIONSIZE;
+
+  // restore original code size
+  code_size = saved_code_size;
+}
+
+void implement_gc_brk(uint64_t* context) {
+  // parameter
+  uint64_t program_break;
+
+  // local variable
+  uint64_t size;
+
+  program_break = *(get_regs(context) + REG_A0);
+
+  // check if brk is actually asked for more memory
+  // if not, fall back to the default brk syscall
+  if (program_break > get_program_break(context)) {
+    if (debug_syscalls) {
+      printf("(gc_brk): ");
+      print_register_hexadecimal(REG_A0);
+    }
+
+    // calculate size by subtracting the current from the new program break
+    size = program_break - get_program_break(context);
+
+    if (debug_syscalls) {
+      printf(" |- ");
+      print_register_hexadecimal(REG_A0);
+    }
+
+    // yields pointer to new/reused memory (or 0 if failed)
+    *(get_regs(context) + REG_A0) = (uint64_t) gc_malloc_implementation(context, size);
+
+    if (debug_syscalls) {
+      printf(" -> ");
+      print_register_hexadecimal(REG_A0);
+      println();
+    }
+
+    // assert: _bump pointer is last entry in data segment
+
+    // updating the _bump pointer of the program (for consistency)
+    store_virtual_memory(get_pt(context), get_data_seg_end_gc(context) - WORDSIZE, get_program_break(context));
+
+    // assert: gc_brk syscall is invoked by selfie's malloc
+
+    set_lc_malloc(context, get_lc_malloc(context) + 1);
+
+    // skip next seven instructions of selfie's malloc
+    // to avoid using its bump pointer allocator
+    set_pc(context, get_pc(context) + 8 * INSTRUCTIONSIZE);
+  } else
+    implement_brk(context);
+}
+
+uint64_t is_gc_library(uint64_t* context) {
+  if (context == (uint64_t*) 0)
+    return 1;
+  else
+    return 0;
+}
+
+uint64_t* allocate_metadata(uint64_t* context) {
+  if (is_gc_library(context))
+    return allocate_new_memory(context, GC_METADATA_SIZE);
+  else
+    return smalloc(GC_METADATA_SIZE);
+}
+
+uint64_t get_stack_seg_start_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return fetch_stack_pointer();
+  else
+    return *(get_regs(context) + REG_SP);
+}
+
+uint64_t get_data_seg_start_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return gc_data_seg_start;
+  else
+    return get_data_seg_start(context);
+}
+
+uint64_t get_data_seg_end_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return gc_data_seg_end;
+  else
+    return get_data_seg_start(context) + get_data_seg_size(context);
+}
+
+uint64_t get_heap_seg_start_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return gc_heap_seg_start;
+  else
+    return get_heap_seg_start(context);
+}
+
+uint64_t get_heap_seg_end_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return gc_heap_seg_end;
+  else
+    return get_program_break(context);
+}
+
+uint64_t* get_used_list_head_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return gc_used_list;
+  else
+    return get_used_list_head(context);
+}
+
+uint64_t* get_free_list_head_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return gc_free_list;
+  else
+    return get_free_list_head(context);
+}
+
+uint64_t get_gcs_in_period_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return gc_num_gcs_in_period;
+  else
+    return get_gcs_in_period(context);
+}
+
+uint64_t get_gc_enabled_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    return USE_GC_LIBRARY;
+  else
+    return get_use_gc_kernel(context);
+}
+
+void set_data_and_heap_segments_gc(uint64_t* context) {
+  if (is_gc_library(context)) {
+    // we use fetch_global_pointer rather than smalloc_system(0)
+    // to be accurate even if smalloc has been called before
+    gc_data_seg_end   = fetch_global_pointer();
+    gc_data_seg_start = gc_data_seg_end - fetch_data_segment_size();
+
+    // assert: smalloc_system(0) returns program break
+    gc_heap_seg_start = (uint64_t) smalloc_system(0);
+    gc_heap_seg_end   = gc_heap_seg_start;
+  }
+}
+
+void set_used_list_head_gc(uint64_t* context, uint64_t* used_list_head){
+  if (is_gc_library(context))
+    gc_used_list = used_list_head;
+  else
+    set_used_list_head(context, used_list_head);
+}
+
+void set_free_list_head_gc(uint64_t* context, uint64_t* free_list_head) {
+  if (is_gc_library(context))
+    gc_free_list = free_list_head;
+  else
+    set_free_list_head(context, free_list_head);
+}
+
+void set_gcs_in_period_gc(uint64_t* context, uint64_t gcs) {
+  if (is_gc_library(context))
+    gc_num_gcs_in_period = gcs;
+  else
+    set_gcs_in_period(context, gcs);
+}
+
+void set_gc_enabled_gc(uint64_t* context) {
+  if (is_gc_library(context))
+    USE_GC_LIBRARY = GC_ENABLED;
+  else
+    set_use_gc_kernel(context, GC_ENABLED);
+}
+
+uint64_t is_gc_enabled(uint64_t* context) {
+  return get_gc_enabled_gc(context) == GC_ENABLED;
+}
+
+void gc_init(uint64_t* context) {
+  gc_init_selfie(context);
+}
+
+void gc_init_selfie(uint64_t* context) {
+  reset_gc_counters();
+
+  // calculate metadata size using actual size of pointers and integers
+  GC_METADATA_SIZE = 2 * sizeof(uint64_t*) + 2 * sizeof(uint64_t);
+
+  if (is_gc_library(context))
+    GC_WORDSIZE = sizeof(uint64_t);
+  else
+    GC_WORDSIZE = WORDSIZE;
+
+  set_data_and_heap_segments_gc(context);
+
+  set_used_list_head_gc(context, (uint64_t*) 0);
+  set_free_list_head_gc(context, (uint64_t*) 0);
+  set_gcs_in_period_gc(context, 0);
+  set_gc_enabled_gc(context);
+}
+
+uint64_t* retrieve_from_free_list(uint64_t* context, uint64_t size) {
+  uint64_t* prev_node;
+  uint64_t* node;
+
+  prev_node = (uint64_t*) 0;
+
+  node = get_free_list_head_gc(context);
+
+  while (node != (uint64_t*) 0) {
+    if (get_metadata_size(node) == size) {
+      if (prev_node == (uint64_t*) 0)
+        set_free_list_head_gc(context, get_metadata_next(node));
+      else
+        set_metadata_next(prev_node, get_metadata_next(node));
+
+      set_metadata_next(node, get_used_list_head_gc(context));
+
+      set_used_list_head_gc(context, node);
+
+      return node;
+    }
+
+    prev_node = node;
+
+    node = get_metadata_next(node);
+  }
+
+  return (uint64_t*) 0;
+}
+
+uint64_t gc_load_memory(uint64_t* context, uint64_t address) {
+  if (is_gc_library(context))
+    return *((uint64_t*) address);
+  else
+    // assert: is_virtual_address_valid(address, WORDSIZE) == 1
+    if (is_virtual_address_mapped(get_pt(context), address))
+      return load_virtual_memory(get_pt(context), address);
+    else
+      return 0;
+}
+
+void gc_store_memory(uint64_t* context, uint64_t address, uint64_t value) {
+  if (is_gc_library(context))
+    *((uint64_t*) address) = value;
+  else
+    // assert: is_virtual_address_valid(address, WORDSIZE) == 1
+    if (is_virtual_address_mapped(get_pt(context), address))
+      store_virtual_memory(get_pt(context), address, value);
+}
+
+void zero_object(uint64_t* context, uint64_t* metadata) {
+  uint64_t object_start;
+  uint64_t object_end;
+
+  // zero object memory
+  object_start = (uint64_t) get_metadata_memory(metadata);
+  object_end   = object_start + get_metadata_size(metadata);
+
+  while (object_start < object_end) {
+    gc_store_memory(context, object_start, 0);
+
+    object_start = object_start + GC_WORDSIZE;
+  }
+}
+
+uint64_t* allocate_new_memory(uint64_t* context, uint64_t size) {
+  uint64_t object;
+  uint64_t new_program_break;
+
+  if (is_gc_library(context)) {
+    object = (uint64_t) smalloc_system(size);
+
+    // assert: smalloc_system is a bump pointer allocator that may reuse memory
+
+    if (object + size > gc_heap_seg_end)
+      gc_heap_seg_end = object + size;
+
+    return (uint64_t*) object;
+  } else {
+    object = get_program_break(context);
+
+    // attempt to update program break
+
+    new_program_break = try_brk(context, object + size);
+
+    if (new_program_break == object + size)
+      // attempt to update program break succeeded
+      return (uint64_t*) object;
+  }
+
+  return (uint64_t*) 0;
+}
+
+uint64_t* reuse_memory(uint64_t* context, uint64_t size) {
+  uint64_t* metadata;
+
+  // check if reusable memory is available in free list
+  metadata = retrieve_from_free_list(context, size);
+
+  if (metadata != (uint64_t*) 0) {
+    // zeroing reused memory is optional!
+    zero_object(context, metadata);
+
+    return get_metadata_memory(metadata);
+  }
+
+  return (uint64_t*) 0;
+}
+
+uint64_t* allocate_memory(uint64_t* context, uint64_t size) {
+  return allocate_memory_selfie(context, size);
+}
+
+uint64_t* allocate_memory_selfie(uint64_t* context, uint64_t size) {
+  uint64_t* object;
+  uint64_t* metadata;
+
+  gc_num_mallocated = gc_num_mallocated + 1;
+  gc_mem_mallocated = gc_mem_mallocated + size;
+
+  // try reusing memory first
+  object = reuse_memory(context, size);
+
+  if (object != (uint64_t*) 0) {
+    gc_num_reused_mallocs = gc_num_reused_mallocs + 1;
+    gc_mem_reused         = gc_mem_reused + size;
+
+    return object;
+  }
+
+  // allocate new object memory if there is no reusable memory
+  object = allocate_new_memory(context, size);
+
+  if (object != (uint64_t*) 0) {
+    // allocate metadata for managing object
+    metadata = allocate_metadata(context);
+
+    if (metadata != (uint64_t*) 0) {
+      set_metadata_next(metadata, get_used_list_head_gc(context));
+      set_used_list_head_gc(context, metadata);
+
+      set_metadata_memory(metadata, object);
+      set_metadata_size(metadata, size);
+      set_metadata_markbit(metadata, GC_MARKBIT_UNREACHABLE);
+
+      gc_num_gced_mallocs   = gc_num_gced_mallocs + 1;
+      gc_num_ungced_mallocs = gc_num_ungced_mallocs + 1;
+
+      gc_mem_objects  = gc_mem_objects + size;
+      gc_mem_metadata = gc_mem_metadata + GC_METADATA_SIZE;
+    } else
+      return (uint64_t*) 0;
+  } else
+    // if object allocation failed discount memory from mallocated total
+    gc_mem_mallocated = gc_mem_mallocated - size;
+
+  return object;
+}
+
+uint64_t* gc_malloc_implementation(uint64_t* context, uint64_t size) {
+  // first, garbage collect
+  if (get_gcs_in_period_gc(context) >= GC_PERIOD) {
+    gc_collect(context);
+
+    set_gcs_in_period_gc(context, 0);
+  } else
+    set_gcs_in_period_gc(context, get_gcs_in_period_gc(context) + 1);
+
+  // then, allocate memory
+
+  size = round_up(size, GC_WORDSIZE);
+
+  return allocate_memory(context, size);
+}
+
+uint64_t* get_metadata_if_address_is_valid(uint64_t* context, uint64_t address) {
+  uint64_t* node;
+  uint64_t  object;
+
+  // pointer below gced heap
+  if (address < get_heap_seg_start_gc(context))
+    return (uint64_t*) 0;
+
+  // pointer above gced heap
+  if (address >= get_heap_seg_end_gc(context))
+    return (uint64_t*) 0;
+
+  node = get_used_list_head_gc(context);
+
+  while (node != (uint64_t*) 0) {
+    if (is_gc_library(context))
+      if (address >= (uint64_t) node)
+        if (address < ((uint64_t) node + GC_METADATA_SIZE))
+          // address points to metadata (redundant check but possibly faster)
+          return (uint64_t*) 0;
+
+    object = (uint64_t) get_metadata_memory(node);
+
+    if (address >= object)
+      if (address < object + get_metadata_size(node))
+        // address points into a gced object
+        return node;
+
+    node = get_metadata_next(node);
+  }
+
+  return (uint64_t*) 0;
+}
+
+void mark_object(uint64_t* context, uint64_t address) {
+  uint64_t gc_address;
+
+  gc_address = gc_load_memory(context, address);
+
+  mark_object_selfie(context, gc_address);
+}
+
+void mark_object_selfie(uint64_t* context, uint64_t gc_address) {
+  uint64_t* metadata;
+  uint64_t object_start;
+  uint64_t object_end;
+
+  if (is_gc_library(context) == 0)
+    if (is_virtual_address_valid(gc_address, WORDSIZE) == 0)
+      return;
+
+  metadata = get_metadata_if_address_is_valid(context, gc_address);
+
+  if (metadata == (uint64_t*) 0)
+    // address is not a pointer to a gced object
+    return;
+  else if (get_metadata_markbit(metadata) == GC_MARKBIT_UNREACHABLE)
+    set_metadata_markbit(metadata, GC_MARKBIT_REACHABLE);
+  else
+    // object has already been marked as reachable
+    return;
+
+  object_start = (uint64_t) get_metadata_memory(metadata);
+  object_end   = object_start + get_metadata_size(metadata);
+
+  while (object_start < object_end) {
+    mark_object(context, object_start);
+
+    object_start = object_start + GC_WORDSIZE;
+  }
+}
+
+void mark_segment(uint64_t* context, uint64_t segment_start, uint64_t segment_end) {
+  // assert: segment is not heap
+
+  // prevent (32-bit) overflow by subtracting GC_WORDSIZE from index
+  segment_start = segment_start - GC_WORDSIZE;
+
+  while (segment_start < segment_end - GC_WORDSIZE) {
+    // undo GC_WORDSIZE index offset before marking address
+    mark_object(context, segment_start + GC_WORDSIZE);
+
+    segment_start = segment_start + GC_WORDSIZE;
+  }
+}
+
+void mark(uint64_t* context) {
+  if (get_used_list_head_gc(context) == (uint64_t*) 0)
+    return; // if there is no used memory skip collection
+
+  // not traversing registers
+
+  // assert: temporary registers do not contain any reference to gc_heap memory
+  // selfie saves all relevant temporary registers on stack, see procedure_prologue().
+
+  // root segments: call stack and data segment
+
+  // traverse call stack
+  mark_segment(context, get_stack_seg_start_gc(context), VIRTUALMEMORYSIZE * GIGABYTE);
+
+  // traverse data segment
+  mark_segment(context, get_data_seg_start_gc(context), get_data_seg_end_gc(context));
+}
+
+void free_object(uint64_t* context, uint64_t* metadata, uint64_t* prev_metadata) {
+  if (prev_metadata == (uint64_t*) 0)
+    set_used_list_head_gc(context, get_metadata_next(metadata));
+  else
+    set_metadata_next(prev_metadata, get_metadata_next(metadata));
+
+  if (GC_REUSE) {
+    set_metadata_next(metadata, get_free_list_head_gc(context));
+
+    set_free_list_head_gc(context, metadata);
+  }
+
+  gc_mem_collected = gc_mem_collected + get_metadata_size(metadata);
+}
+
+void sweep(uint64_t* context) {
+  sweep_selfie(context);
+}
+
+void sweep_selfie(uint64_t* context) {
+  uint64_t* prev_node;
+  uint64_t* node;
+  uint64_t* next_node;
+
+  prev_node = (uint64_t*) 0;
+
+  node = get_used_list_head_gc(context);
+
+  while (node != (uint64_t*) 0) {
+    // next node changes when object is reused
+    next_node = get_metadata_next(node);
+
+    if (get_metadata_markbit(node) == GC_MARKBIT_UNREACHABLE)
+      free_object(context, node, prev_node);
+    else {
+      // clear mark bit for next marking
+      set_metadata_markbit(node, GC_MARKBIT_UNREACHABLE);
+
+      prev_node = node;
+    }
+
+    node = next_node;
+  }
+}
+
+void gc_collect(uint64_t* context) {
+  mark(context);
+  sweep(context);
+
+  gc_num_collects = gc_num_collects + 1;
+}
+
+void print_gc_profile(uint64_t is_gc_kernel) {
+  printf("%s: gc:      %lu.%.2luMB requested in %lu mallocs (%lu gced, %lu reuses)\n", selfie_name,
+    ratio_format_integral_2(gc_mem_mallocated, MEGABYTE),
+    ratio_format_fractional_2(gc_mem_mallocated, MEGABYTE),
+    gc_num_mallocated,
+    gc_num_gced_mallocs,
+    gc_num_reused_mallocs);
+  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) reused in %lu reused mallocs\n", selfie_name,
+    ratio_format_integral_2(gc_mem_reused, MEGABYTE),
+    ratio_format_fractional_2(gc_mem_reused, MEGABYTE),
+    percentage_format_integral_2(gc_mem_mallocated, gc_mem_reused),
+    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_reused),
+    gc_num_reused_mallocs);
+  printf("%s: gc:      %lu.%.2luMB collected in %lu gc runs\n", selfie_name,
+    ratio_format_integral_2(gc_mem_collected, MEGABYTE),
+    ratio_format_fractional_2(gc_mem_collected, MEGABYTE),
+    gc_num_collects);
+  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) allocated in %lu mallocs (%lu gced, %lu ungced)\n", selfie_name,
+    ratio_format_integral_2(gc_mem_objects + gc_mem_metadata, MEGABYTE),
+    ratio_format_fractional_2(gc_mem_objects + gc_mem_metadata, MEGABYTE),
+    percentage_format_integral_2(gc_mem_mallocated, gc_mem_objects + gc_mem_metadata),
+    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_objects + gc_mem_metadata),
+    gc_num_gced_mallocs + gc_num_ungced_mallocs,
+    gc_num_gced_mallocs,
+    gc_num_ungced_mallocs);
+  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) allocated in %lu gced mallocs\n", selfie_name,
+    ratio_format_integral_2(gc_mem_objects, MEGABYTE),
+    ratio_format_fractional_2(gc_mem_objects, MEGABYTE),
+    percentage_format_integral_2(gc_mem_mallocated, gc_mem_objects),
+    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_objects),
+    gc_num_gced_mallocs);
+  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) allocated in %lu ungced mallocs", selfie_name,
+    ratio_format_integral_2(gc_mem_metadata, MEGABYTE),
+    ratio_format_fractional_2(gc_mem_metadata, MEGABYTE),
+    percentage_format_integral_2(gc_mem_mallocated, gc_mem_metadata),
+    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_metadata),
+    gc_num_ungced_mallocs);
+  if (is_gc_kernel)
+    printf(" (external)");
+  println();
 }
 
 // -----------------------------------------------------------------
@@ -8961,10 +9661,10 @@ void do_divu() {
     write_register(rd);
 
     pc = pc + INSTRUCTIONSIZE;
+
+    ic_divu = ic_divu + 1;
   } else
     throw_exception(EXCEPTION_DIVISIONBYZERO, pc);
-
-  ic_divu = ic_divu + 1;
 }
 
 void do_remu() {
@@ -8990,10 +9690,10 @@ void do_remu() {
     write_register(rd);
 
     pc = pc + INSTRUCTIONSIZE;
+
+    ic_remu = ic_remu + 1;
   } else
     throw_exception(EXCEPTION_DIVISIONBYZERO, pc);
-
-  ic_remu = ic_remu + 1;
 }
 
 void do_sltu() {
@@ -9038,32 +9738,28 @@ void print_load_before() {
 
   printf(": ");
   print_register_hexadecimal(rs1);
-  printf(",");
 
   if (is_virtual_address_valid(vaddr, WORDSIZE))
-    if (is_valid_segment_read(vaddr))
-      if (is_virtual_address_mapped(pt, vaddr)) {
-        if (is_system_register(rd))
-          printf("mem[0x%lX]==0x%lX |- ", vaddr, load_virtual_memory(pt, vaddr));
-        else
-          printf("mem[0x%lX]==%ld |- ", vaddr, load_virtual_memory(pt, vaddr));
-        print_register_value(rd);
-      } else
-        printf("0x%lX is unmapped (page fault)", vaddr);
-    else
-      printf("0x%lX is ill-segmented (segmentation fault)", vaddr);
-  else
-    printf("0x%lX is invalid", vaddr);
+    if (is_virtual_address_mapped(pt, vaddr)) {
+      if (is_system_register(rd))
+        printf(",mem[0x%lX]==0x%lX |- ", vaddr, load_virtual_memory(pt, vaddr));
+      else
+        printf(",mem[0x%lX]==%ld |- ", vaddr, load_virtual_memory(pt, vaddr));
+      print_register_value(rd);
+
+      return;
+    }
+
+  printf(" |-");
 }
 
 void print_load_after(uint64_t vaddr) {
   if (is_virtual_address_valid(vaddr, WORDSIZE))
-    if (is_valid_segment_read(vaddr))
-      if (is_virtual_address_mapped(pt, vaddr)) {
-        printf(" -> ");
-        print_register_value(rd);
-        printf("==mem[0x%lX]", vaddr);
-      }
+    if (is_virtual_address_mapped(pt, vaddr)) {
+      printf(" -> ");
+      print_register_value(rd);
+      printf("==mem[0x%lX]", vaddr);
+    }
 }
 
 void record_load() {
@@ -9072,9 +9768,8 @@ void record_load() {
   vaddr = *(registers + rs1) + imm;
 
   if (is_virtual_address_valid(vaddr, WORDSIZE))
-    if (is_valid_segment_read(vaddr))
-      if (is_virtual_address_mapped(pt, vaddr))
-        record_state(*(registers + rd));
+    if (is_virtual_address_mapped(pt, vaddr))
+      record_state(*(registers + rd));
 }
 
 uint64_t do_load() {
@@ -9116,7 +9811,7 @@ uint64_t do_load() {
         // and individually
         *(loads_per_instruction + a) = *(loads_per_instruction + a) + 1;
       } else
-        throw_exception(EXCEPTION_PAGEFAULT, page_of_virtual_address(vaddr));
+        throw_exception(EXCEPTION_PAGEFAULT, get_page_of_virtual_address(vaddr));
     } else
       throw_exception(EXCEPTION_SEGMENTATIONFAULT, vaddr);
   } else
@@ -9138,32 +9833,28 @@ void print_store_before() {
 
   printf(": ");
   print_register_hexadecimal(rs1);
-  printf(",");
-  print_register_value(rs2);
-  printf(" |- ");
 
   if (is_virtual_address_valid(vaddr, WORDSIZE))
-    if (is_valid_segment_write(vaddr))
-      if (is_virtual_address_mapped(pt, vaddr))
-        if (is_system_register(rs2))
-          printf("mem[0x%lX]==0x%lX", vaddr, load_virtual_memory(pt, vaddr));
-        else
-          printf("mem[0x%lX]==%ld", vaddr, load_virtual_memory(pt, vaddr));
+    if (is_virtual_address_mapped(pt, vaddr)) {
+      printf(",");
+      print_register_value(rs2);
+      if (is_system_register(rd))
+        printf(" |- mem[0x%lX]==0x%lX", vaddr, load_virtual_memory(pt, vaddr));
       else
-        printf("0x%lX is unmapped (page fault)", vaddr);
-    else
-      printf("0x%lX is ill-segmented (segmentation fault)", vaddr);
-  else
-    printf("0x%lX is invalid", vaddr);
+        printf(" |- mem[0x%lX]==%ld", vaddr, load_virtual_memory(pt, vaddr));
+
+      return;
+    }
+
+  printf(" |-");
 }
 
 void print_store_after(uint64_t vaddr) {
   if (is_virtual_address_valid(vaddr, WORDSIZE))
-    if (is_valid_segment_write(vaddr))
-      if (is_virtual_address_mapped(pt, vaddr)) {
-        printf(" -> mem[0x%lX]==", vaddr);
-        print_register_value(rs2);
-      }
+    if (is_virtual_address_mapped(pt, vaddr)) {
+      printf(" -> mem[0x%lX]==", vaddr);
+      print_register_value(rs2);
+    }
 }
 
 void record_store() {
@@ -9172,9 +9863,8 @@ void record_store() {
   vaddr = *(registers + rs1) + imm;
 
   if (is_virtual_address_valid(vaddr, WORDSIZE))
-    if (is_valid_segment_write(vaddr))
-      if (is_virtual_address_mapped(pt, vaddr))
-        record_state(load_virtual_memory(pt, vaddr));
+    if (is_virtual_address_mapped(pt, vaddr))
+      record_state(load_virtual_memory(pt, vaddr));
 }
 
 uint64_t do_store() {
@@ -9215,7 +9905,7 @@ uint64_t do_store() {
         // and individually
         *(stores_per_instruction + a) = *(stores_per_instruction + a) + 1;
       } else
-        throw_exception(EXCEPTION_PAGEFAULT, page_of_virtual_address(vaddr));
+        throw_exception(EXCEPTION_PAGEFAULT, get_page_of_virtual_address(vaddr));
     } else
       throw_exception(EXCEPTION_SEGMENTATIONFAULT, vaddr);
   } else
@@ -9444,11 +10134,15 @@ void do_ecall() {
 
     if (*(registers + REG_A7) != SYSCALL_EXIT) {
       if (*(registers + REG_A7) != SYSCALL_BRK) {
-        read_register(REG_A1);
-        read_register(REG_A2);
+        if (*(registers + REG_A7) != SYSCALL_FORK) {
+          if (*(registers + REG_A7) != SYSCALL_WAIT) {
+            read_register(REG_A1);
+            read_register(REG_A2);
 
-        if (*(registers + REG_A7) == SYSCALL_OPENAT)
-          read_register(REG_A3);
+            if (*(registers + REG_A7) == SYSCALL_OPENAT)
+              read_register(REG_A3);
+          }
+        }
       }
 
       write_register(REG_A0);
@@ -9683,37 +10377,16 @@ void print_register_value(uint64_t reg) {
     printf("%s==%ld(0x%lX)", get_register_name(reg), *(registers + reg), *(registers + reg));
 }
 
-uint64_t is_valid_segment_read(uint64_t vaddr) {
-  if (is_data_address(current_context, vaddr)) {
-    data_reads = data_reads + 1;
-
+uint64_t is_uncaught_exception(uint64_t exception) {
+  if (exception == EXCEPTION_SEGMENTATIONFAULT)
     return 1;
-  } else if (is_stack_address(current_context, vaddr)) {
-    stack_reads = stack_reads + 1;
-
+  else if (exception == EXCEPTION_INVALIDADDRESS)
     return 1;
-  } else if (is_heap_address(current_context, vaddr)) {
-    heap_reads = heap_reads + 1;
-
+  else if (exception == EXCEPTION_UNKNOWNINSTRUCTION)
     return 1;
-  } else
-    return 0;
-}
-
-uint64_t is_valid_segment_write(uint64_t vaddr) {
-  if (is_data_address(current_context, vaddr)) {
-    data_writes = data_writes + 1;
-
+  else if (exception == EXCEPTION_UNINITIALIZEDREGISTER)
     return 1;
-  } else if (is_stack_address(current_context, vaddr)) {
-    stack_writes = stack_writes + 1;
-
-    return 1;
-  } else if (is_heap_address(current_context, vaddr)) {
-    heap_writes = heap_writes + 1;
-
-    return 1;
-  } else
+  else
     return 0;
 }
 
@@ -10290,8 +10963,8 @@ void print_profile() {
     if (get_ic_all(context) > 0) {
       print_instruction_versus_exception_profile(context);
       printf("%s:          %lu.%.2luKB peak stack size\n", selfie_name,
-        ratio_format_integral_2(get_mc_stack_peak(context), KILOBYTE),
-        ratio_format_fractional_2(get_mc_stack_peak(context), KILOBYTE));
+        ratio_format_integral_2(VIRTUALMEMORYSIZE * GIGABYTE - get_mc_stack_peak(context), KILOBYTE),
+        ratio_format_fractional_2(VIRTUALMEMORYSIZE * GIGABYTE - get_mc_stack_peak(context), KILOBYTE));
       printf("%s:          %lu.%.2luMB allocated in %lu mallocs (%lu.%.2luMB or %lu.%.2lu%% actually accessed)\n", selfie_name,
         ratio_format_integral_2(get_program_break(context) - get_heap_seg_start(context), MEGABYTE),
         ratio_format_fractional_2(get_program_break(context) - get_heap_seg_start(context), MEGABYTE),
@@ -10380,689 +11053,7 @@ void print_host_os() {
 // *~*~ *~*~ *~*~ *~*~ *~*~ *~*~ *~*~ *~*~ *~*~ *~*~ *~*~ *~*~ *~*~
 
 // -----------------------------------------------------------------
-// ---------------------------- MEMORY -----------------------------
-// -----------------------------------------------------------------
-
-uint64_t is_code_address(uint64_t* context, uint64_t vaddr) {
-  // is address in code segment?
-  if (vaddr >= get_code_seg_start(context))
-    if (vaddr < get_code_seg_start(context) + get_code_seg_size(context))
-      return 1;
-
-  return 0;
-}
-
-uint64_t is_data_address(uint64_t* context, uint64_t vaddr) {
-  // is address in data segment?
-  if (vaddr >= get_data_seg_start(context))
-    if (vaddr < get_data_seg_start(context) + get_data_seg_size(context))
-      return 1;
-
-  return 0;
-}
-
-uint64_t is_stack_address(uint64_t* context, uint64_t vaddr) {
-  // is address in stack segment?
-  if (vaddr >= *(get_regs(context) + REG_SP))
-    if (vaddr <= HIGHESTVIRTUALADDRESS)
-      return 1;
-
-  return 0;
-}
-
-uint64_t is_heap_address(uint64_t* context, uint64_t vaddr) {
-  // is address in heap segment?
-  if (vaddr >= get_heap_seg_start(context))
-    if (vaddr < get_program_break(context))
-      return 1;
-
-  return 0;
-}
-
-uint64_t is_address_between_stack_and_heap(uint64_t* context, uint64_t vaddr) {
-  // is address between heap and stack segments?
-  if (vaddr >= get_program_break(context))
-    if (vaddr < *(get_regs(context) + REG_SP))
-      return 1;
-
-  return 0;
-}
-
-uint64_t is_data_stack_heap_address(uint64_t* context, uint64_t vaddr) {
-  if (is_data_address(context, vaddr))
-    return 1;
-  else if (is_stack_address(context, vaddr))
-    return 1;
-  else if (is_heap_address(context, vaddr))
-    return 1;
-  else
-    return 0;
-}
-
-// -----------------------------------------------------------------
-// ---------------------- GARBAGE COLLECTOR ------------------------
-// -----------------------------------------------------------------
-
-void emit_fetch_stack_pointer() {
-  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fetch_stack_pointer"),
-    0, PROCEDURE, UINT64_T, 0, code_size);
-
-  emit_add(REG_A0, REG_ZR, REG_SP);
-
-  emit_jalr(REG_ZR, REG_RA, 0);
-}
-
-void emit_fetch_global_pointer() {
-  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fetch_global_pointer"),
-    0, PROCEDURE, UINT64_T, 0, code_size);
-
-  emit_add(REG_A0, REG_ZR, REG_GP);
-
-  emit_jalr(REG_ZR, REG_RA, 0);
-}
-
-void emit_fetch_data_segment_size_interface() {
-  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fetch_data_segment_size"),
-    0, PROCEDURE, UINT64_T, 0, code_size);
-
-  // up to three instructions needed to load data segment size but is not yet known
-
-  emit_nop();
-  emit_nop();
-  emit_nop();
-
-  emit_jalr(REG_ZR, REG_RA, 0);
-}
-
-void emit_fetch_data_segment_size_implementation(uint64_t fetch_dss_code_location) {
-  uint64_t saved_code_size;
-
-  // set code emission to fetch_data_segment_size
-  saved_code_size = code_size;
-  code_size       = fetch_dss_code_location;
-
-  // assert: emitting no more than 3 instructions
-
-  // load data segment size into A0 (size is independent of entry point)
-  load_small_and_medium_integer(REG_A0, data_size);
-
-  // discount NOPs in profile that were generated for fetch_data_segment_size
-  ic_addi = ic_addi - (code_size - fetch_dss_code_location) / INSTRUCTIONSIZE;
-
-  // restore original code size
-  code_size = saved_code_size;
-}
-
-void implement_gc_brk(uint64_t* context) {
-  // parameter
-  uint64_t new_program_break;
-
-  // local variable
-  uint64_t size;
-
-  new_program_break = *(get_regs(context) + REG_A0);
-
-  // check if brk is actually asked for more memory
-  // if not, fall back to the default brk syscall
-  if (new_program_break > get_program_break(context)) {
-    if (debug_syscalls) {
-      printf("(gc_brk): ");
-      print_register_hexadecimal(REG_A0);
-    }
-
-    // calculate size by subtracting the current from the new program break
-    size = new_program_break - get_program_break(context);
-
-    if (debug_syscalls) {
-      printf(" |- ");
-      print_register_hexadecimal(REG_A0);
-    }
-
-    // yields pointer to new/reused memory (or 0 if failed)
-    *(get_regs(context) + REG_A0) = (uint64_t) gc_malloc_implementation(context, size);
-
-    if (debug_syscalls) {
-      printf(" -> ");
-      print_register_hexadecimal(REG_A0);
-      println();
-    }
-
-    // assert: _bump pointer is last entry in data segment
-
-    // tracking the program break with the _bump pointer of the program
-    store_virtual_memory(get_pt(context), get_data_seg_end_gc(context) - WORDSIZE, get_program_break(context));
-
-    // assert: gc_brk syscall is invoked by selfie's malloc
-
-    set_lc_malloc(context, get_lc_malloc(context) + 1);
-
-    // skip next seven instructions of selfie's malloc
-    // to avoid using its bump pointer allocator
-    set_pc(context, get_pc(context) + 8 * INSTRUCTIONSIZE);
-  } else
-    implement_brk(context);
-}
-
-uint64_t is_gc_library(uint64_t* context) {
-  if (context == (uint64_t*) 0)
-    return 1;
-  else
-    return 0;
-}
-
-uint64_t* allocate_metadata(uint64_t* context) {
-  if (is_gc_library(context))
-    return allocate_new_memory(context, GC_METADATA_SIZE);
-  else
-    return smalloc(GC_METADATA_SIZE);
-}
-
-uint64_t get_stack_seg_start_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return fetch_stack_pointer();
-  else
-    return *(get_regs(context) + REG_SP);
-}
-
-uint64_t get_data_seg_start_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return gc_data_seg_start;
-  else
-    return get_data_seg_start(context);
-}
-
-uint64_t get_data_seg_end_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return gc_data_seg_end;
-  else
-    return get_data_seg_start(context) + get_data_seg_size(context);
-}
-
-uint64_t get_heap_seg_start_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return gc_heap_seg_start;
-  else
-    return get_heap_seg_start(context);
-}
-
-uint64_t get_heap_seg_end_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return gc_heap_seg_end;
-  else
-    return get_program_break(context);
-}
-
-uint64_t* get_used_list_head_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return gc_used_list;
-  else
-    return get_used_list_head(context);
-}
-
-uint64_t* get_free_list_head_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return gc_free_list;
-  else
-    return get_free_list_head(context);
-}
-
-uint64_t get_gcs_in_period_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return gc_num_gcs_in_period;
-  else
-    return get_gcs_in_period(context);
-}
-
-uint64_t get_gc_enabled_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    return USE_GC_LIBRARY;
-  else
-    return get_use_gc_kernel(context);
-}
-
-void set_data_and_heap_segments_gc(uint64_t* context) {
-  if (is_gc_library(context)) {
-    // we use fetch_global_pointer rather than smalloc_system(0)
-    // to be accurate even if smalloc has been called before
-    gc_data_seg_end   = fetch_global_pointer();
-    gc_data_seg_start = gc_data_seg_end - fetch_data_segment_size();
-
-    // assert: smalloc_system(0) returns program break
-    gc_heap_seg_start = (uint64_t) smalloc_system(0);
-    gc_heap_seg_end   = gc_heap_seg_start;
-  }
-}
-
-void set_used_list_head_gc(uint64_t* context, uint64_t* used_list_head){
-  if (is_gc_library(context))
-    gc_used_list = used_list_head;
-  else
-    set_used_list_head(context, used_list_head);
-}
-
-void set_free_list_head_gc(uint64_t* context, uint64_t* free_list_head) {
-  if (is_gc_library(context))
-    gc_free_list = free_list_head;
-  else
-    set_free_list_head(context, free_list_head);
-}
-
-void set_gcs_in_period_gc(uint64_t* context, uint64_t gcs) {
-  if (is_gc_library(context))
-    gc_num_gcs_in_period = gcs;
-  else
-    set_gcs_in_period(context, gcs);
-}
-
-void set_gc_enabled_gc(uint64_t* context) {
-  if (is_gc_library(context))
-    USE_GC_LIBRARY = GC_ENABLED;
-  else
-    set_use_gc_kernel(context, GC_ENABLED);
-}
-
-uint64_t is_gc_enabled(uint64_t* context) {
-  return get_gc_enabled_gc(context) == GC_ENABLED;
-}
-
-void gc_init(uint64_t* context) {
-  gc_init_selfie(context);
-}
-
-void gc_init_selfie(uint64_t* context) {
-  reset_gc_counters();
-
-  // calculate metadata size using actual size of pointers and integers
-  GC_METADATA_SIZE = 2 * sizeof(uint64_t*) + 2 * sizeof(uint64_t);
-
-  if (is_gc_library(context))
-    GC_WORDSIZE = sizeof(uint64_t);
-  else
-    GC_WORDSIZE = WORDSIZE;
-
-  set_data_and_heap_segments_gc(context);
-
-  set_used_list_head_gc(context, (uint64_t*) 0);
-  set_free_list_head_gc(context, (uint64_t*) 0);
-  set_gcs_in_period_gc(context, 0);
-  set_gc_enabled_gc(context);
-}
-
-uint64_t* retrieve_from_free_list(uint64_t* context, uint64_t size) {
-  uint64_t* prev_node;
-  uint64_t* node;
-
-  prev_node = (uint64_t*) 0;
-
-  node = get_free_list_head_gc(context);
-
-  while (node != (uint64_t*) 0) {
-    if (get_metadata_size(node) == size) {
-      if (prev_node == (uint64_t*) 0)
-        set_free_list_head_gc(context, get_metadata_next(node));
-      else
-        set_metadata_next(prev_node, get_metadata_next(node));
-
-      set_metadata_next(node, get_used_list_head_gc(context));
-
-      set_used_list_head_gc(context, node);
-
-      return node;
-    }
-
-    prev_node = node;
-
-    node = get_metadata_next(node);
-  }
-
-  return (uint64_t*) 0;
-}
-
-uint64_t gc_load_memory(uint64_t* context, uint64_t address) {
-  if (is_gc_library(context))
-    return *((uint64_t*) address);
-  else
-    // assert: is_virtual_address_valid(address, WORDSIZE) == 1
-    if (is_virtual_address_mapped(get_pt(context), address))
-      return load_virtual_memory(get_pt(context), address);
-    else
-      return 0;
-}
-
-void gc_store_memory(uint64_t* context, uint64_t address, uint64_t value) {
-  if (is_gc_library(context))
-    *((uint64_t*) address) = value;
-  else
-    // assert: is_virtual_address_valid(address, WORDSIZE) == 1
-    if (is_virtual_address_mapped(get_pt(context), address))
-      store_virtual_memory(get_pt(context), address, value);
-}
-
-void zero_block(uint64_t* context, uint64_t* metadata) {
-  uint64_t block_start;
-  uint64_t block_end;
-
-  // zero block memory
-  block_start = (uint64_t) get_metadata_memory(metadata);
-  block_end   = block_start + get_metadata_size(metadata);
-
-  while (block_start < block_end) {
-    gc_store_memory(context, block_start, 0);
-
-    block_start = block_start + GC_WORDSIZE;
-  }
-}
-
-uint64_t* allocate_new_memory(uint64_t* context, uint64_t size) {
-  uint64_t block_start;
-  uint64_t new_program_break;
-
-  if (is_gc_library(context)) {
-    block_start = (uint64_t) smalloc_system(size);
-
-    // assert: smalloc_system is a bump pointer allocator that may reuse memory
-
-    if (block_start + size > gc_heap_seg_end)
-      gc_heap_seg_end = block_start + size;
-
-    return (uint64_t*) block_start;
-  } else {
-    block_start = get_program_break(context);
-
-    // attempt to update program break
-
-    new_program_break = try_brk(context, block_start + size);
-
-    if (new_program_break == block_start + size)
-      // attempt to update program break succeeded
-      return (uint64_t*) block_start;
-  }
-
-  return (uint64_t*) 0;
-}
-
-uint64_t* reuse_memory(uint64_t* context, uint64_t size) {
-  uint64_t* metadata;
-
-  // check if reusable memory is available in free list
-  metadata = retrieve_from_free_list(context, size);
-
-  if (metadata != (uint64_t*) 0) {
-    // zeroing reused memory is optional!
-    zero_block(context, metadata);
-
-    return get_metadata_memory(metadata);
-  }
-
-  return (uint64_t*) 0;
-}
-
-uint64_t* allocate_memory(uint64_t* context, uint64_t size) {
-  return allocate_memory_selfie(context, size);
-}
-
-uint64_t* allocate_memory_selfie(uint64_t* context, uint64_t size) {
-  uint64_t* block;
-  uint64_t* metadata;
-
-  gc_num_mallocated = gc_num_mallocated + 1;
-  gc_mem_mallocated = gc_mem_mallocated + size;
-
-  // try reusing memory first
-  block = reuse_memory(context, size);
-
-  if (block != (uint64_t*) 0) {
-    gc_num_reused_mallocs = gc_num_reused_mallocs + 1;
-    gc_mem_reused         = gc_mem_reused + size;
-
-    return block;
-  }
-
-  // allocate new memory block if there is no reusable memory
-  block = allocate_new_memory(context, size);
-
-  if (block != (uint64_t*) 0) {
-    // allocate metadata for managing memory block
-    metadata = allocate_metadata(context);
-
-    if (metadata != (uint64_t*) 0) {
-      set_metadata_next(metadata, get_used_list_head_gc(context));
-      set_used_list_head_gc(context, metadata);
-
-      set_metadata_memory(metadata, block);
-      set_metadata_size(metadata, size);
-      set_metadata_markbit(metadata, GC_MARKBIT_UNREACHABLE);
-
-      gc_num_gced_mallocs   = gc_num_gced_mallocs + 1;
-      gc_num_ungced_mallocs = gc_num_ungced_mallocs + 1;
-
-      gc_mem_blocks   = gc_mem_blocks + size;
-      gc_mem_metadata = gc_mem_metadata + GC_METADATA_SIZE;
-    } else
-      return (uint64_t*) 0;
-  } else
-    // if memory block allocation failed discount memory from mallocated total
-    gc_mem_mallocated = gc_mem_mallocated - size;
-
-  return block;
-}
-
-uint64_t* gc_malloc_implementation(uint64_t* context, uint64_t size) {
-  // first, garbage collect
-  if (get_gcs_in_period_gc(context) >= GC_PERIOD) {
-    gc_collect(context);
-
-    set_gcs_in_period_gc(context, 0);
-  } else
-    set_gcs_in_period_gc(context, get_gcs_in_period_gc(context) + 1);
-
-  // then, allocate memory
-
-  size = round_up(size, GC_WORDSIZE);
-
-  return allocate_memory(context, size);
-}
-
-uint64_t* get_metadata_if_address_is_valid(uint64_t* context, uint64_t address) {
-  uint64_t* node;
-  uint64_t  block;
-
-  // pointer below gced heap
-  if (address < get_heap_seg_start_gc(context))
-    return (uint64_t*) 0;
-
-  // pointer above gced heap
-  if (address >= get_heap_seg_end_gc(context))
-    return (uint64_t*) 0;
-
-  node = get_used_list_head_gc(context);
-
-  while (node != (uint64_t*) 0) {
-    if (is_gc_library(context))
-      if (address >= (uint64_t) node)
-        if (address < ((uint64_t) node + GC_METADATA_SIZE))
-          // address points to metadata (redundant check but possibly faster)
-          return (uint64_t*) 0;
-
-    block = (uint64_t) get_metadata_memory(node);
-
-    if (address >= block)
-      if (address < block + get_metadata_size(node))
-        // address points into a gced block
-        return node;
-
-    node = get_metadata_next(node);
-  }
-
-  return (uint64_t*) 0;
-}
-
-void mark_block(uint64_t* context, uint64_t address) {
-  uint64_t gc_address;
-
-  gc_address = gc_load_memory(context, address);
-
-  mark_block_selfie(context, gc_address);
-}
-
-void mark_block_selfie(uint64_t* context, uint64_t gc_address) {
-  uint64_t* metadata;
-  uint64_t block_start;
-  uint64_t block_end;
-
-  if (is_gc_library(context) == 0)
-    if (is_virtual_address_valid(gc_address, WORDSIZE) == 0)
-      return;
-
-  metadata = get_metadata_if_address_is_valid(context, gc_address);
-
-  if (metadata == (uint64_t*) 0)
-    // address is not a pointer to a gced block
-    return;
-  else if (get_metadata_markbit(metadata) == GC_MARKBIT_UNREACHABLE)
-    set_metadata_markbit(metadata, GC_MARKBIT_REACHABLE);
-  else
-    // memory block has already been marked as reachable
-    return;
-
-  block_start = (uint64_t) get_metadata_memory(metadata);
-  block_end   = block_start + get_metadata_size(metadata);
-
-  while (block_start < block_end) {
-    mark_block(context, block_start);
-
-    block_start = block_start + GC_WORDSIZE;
-  }
-}
-
-void mark_segment(uint64_t* context, uint64_t segment_start, uint64_t segment_end) {
-  // assert: segment is not heap, segment_start >= GC_WORDSIZE
-
-  // prevent 32-bit overflow by subtracting GC_WORDSIZE
-  segment_start = segment_start - GC_WORDSIZE;
-  segment_end   = segment_end - GC_WORDSIZE;
-
-  while (segment_start < segment_end) {
-    // undo GC_WORDSIZE index offset before marking address
-    mark_block(context, segment_start + GC_WORDSIZE);
-
-    segment_start = segment_start + GC_WORDSIZE;
-  }
-}
-
-void mark(uint64_t* context) {
-  if (get_used_list_head_gc(context) == (uint64_t*) 0)
-    return; // if there is no used memory skip collection
-
-  // assert: all used temporary registers are saved on stack, see save_temporaries()
-
-  // not traversing registers
-
-  // root segments: call stack and data segment
-
-  // traverse call stack
-  mark_segment(context, get_stack_seg_start_gc(context), VIRTUALMEMORYSIZE * GIGABYTE);
-
-  // traverse data segment
-  mark_segment(context, get_data_seg_start_gc(context), get_data_seg_end_gc(context));
-}
-
-void free_block(uint64_t* context, uint64_t* metadata, uint64_t* prev_metadata) {
-  if (prev_metadata == (uint64_t*) 0)
-    set_used_list_head_gc(context, get_metadata_next(metadata));
-  else
-    set_metadata_next(prev_metadata, get_metadata_next(metadata));
-
-  if (GC_REUSE) {
-    set_metadata_next(metadata, get_free_list_head_gc(context));
-
-    set_free_list_head_gc(context, metadata);
-  }
-
-  gc_mem_collected = gc_mem_collected + get_metadata_size(metadata);
-}
-
-void sweep(uint64_t* context) {
-  sweep_selfie(context);
-}
-
-void sweep_selfie(uint64_t* context) {
-  uint64_t* prev_node;
-  uint64_t* node;
-  uint64_t* next_node;
-
-  prev_node = (uint64_t*) 0;
-
-  node = get_used_list_head_gc(context);
-
-  while (node != (uint64_t*) 0) {
-    // next node changes when memory block is reused
-    next_node = get_metadata_next(node);
-
-    if (get_metadata_markbit(node) == GC_MARKBIT_UNREACHABLE)
-      free_block(context, node, prev_node);
-    else {
-      // clear mark bit for next marking
-      set_metadata_markbit(node, GC_MARKBIT_UNREACHABLE);
-
-      prev_node = node;
-    }
-
-    node = next_node;
-  }
-}
-
-void gc_collect(uint64_t* context) {
-  mark(context);
-  sweep(context);
-
-  gc_num_collects = gc_num_collects + 1;
-}
-
-void print_gc_profile(uint64_t is_gc_kernel) {
-  printf("%s: gc:      %lu.%.2luMB requested in %lu mallocs (%lu gced, %lu reuses)\n", selfie_name,
-    ratio_format_integral_2(gc_mem_mallocated, MEGABYTE),
-    ratio_format_fractional_2(gc_mem_mallocated, MEGABYTE),
-    gc_num_mallocated,
-    gc_num_gced_mallocs,
-    gc_num_reused_mallocs);
-  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) reused in %lu reused mallocs\n", selfie_name,
-    ratio_format_integral_2(gc_mem_reused, MEGABYTE),
-    ratio_format_fractional_2(gc_mem_reused, MEGABYTE),
-    percentage_format_integral_2(gc_mem_mallocated, gc_mem_reused),
-    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_reused),
-    gc_num_reused_mallocs);
-  printf("%s: gc:      %lu.%.2luMB collected in %lu gc runs\n", selfie_name,
-    ratio_format_integral_2(gc_mem_collected, MEGABYTE),
-    ratio_format_fractional_2(gc_mem_collected, MEGABYTE),
-    gc_num_collects);
-  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) allocated in %lu mallocs (%lu gced, %lu ungced)\n", selfie_name,
-    ratio_format_integral_2(gc_mem_blocks + gc_mem_metadata, MEGABYTE),
-    ratio_format_fractional_2(gc_mem_blocks + gc_mem_metadata, MEGABYTE),
-    percentage_format_integral_2(gc_mem_mallocated, gc_mem_blocks + gc_mem_metadata),
-    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_blocks + gc_mem_metadata),
-    gc_num_gced_mallocs + gc_num_ungced_mallocs,
-    gc_num_gced_mallocs,
-    gc_num_ungced_mallocs);
-  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) allocated in %lu gced mallocs\n", selfie_name,
-    ratio_format_integral_2(gc_mem_blocks, MEGABYTE),
-    ratio_format_fractional_2(gc_mem_blocks, MEGABYTE),
-    percentage_format_integral_2(gc_mem_mallocated, gc_mem_blocks),
-    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_blocks),
-    gc_num_gced_mallocs);
-  printf("%s: gc:      %lu.%.2luMB(%lu.%.2lu%%) allocated in %lu ungced mallocs", selfie_name,
-    ratio_format_integral_2(gc_mem_metadata, MEGABYTE),
-    ratio_format_fractional_2(gc_mem_metadata, MEGABYTE),
-    percentage_format_integral_2(gc_mem_mallocated, gc_mem_metadata),
-    percentage_format_fractional_2(gc_mem_mallocated, gc_mem_metadata),
-    gc_num_ungced_mallocs);
-  if (is_gc_kernel)
-    printf(" (external)");
-  println();
-}
-
-// -----------------------------------------------------------------
-// -------------------------- MICROKERNEL --------------------------
+// ------------------------ MACHINE CONTEXTS -----------------------
 // -----------------------------------------------------------------
 
 uint64_t* new_context() {
@@ -11085,27 +11076,6 @@ uint64_t* new_context() {
   used_contexts = context;
 
   return context;
-}
-
-void free_context(uint64_t* context) {
-  set_next_context(context, free_contexts);
-
-  free_contexts = context;
-}
-
-uint64_t* delete_context(uint64_t* context, uint64_t* from) {
-  if (get_next_context(context) != (uint64_t*) 0)
-    set_prev_context(get_next_context(context), get_prev_context(context));
-
-  if (get_prev_context(context) != (uint64_t*) 0) {
-    set_next_context(get_prev_context(context), get_next_context(context));
-    set_prev_context(context, (uint64_t*) 0);
-  } else
-    from = get_next_context(context);
-
-  free_context(context);
-
-  return from;
 }
 
 void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt) {
@@ -11136,7 +11106,7 @@ void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt) {
   // reset page table cache
   set_lowest_lo_page(context, 0);
   set_highest_lo_page(context, get_lowest_lo_page(context));
-  set_lowest_hi_page(context, page_of_virtual_address(HIGHESTVIRTUALADDRESS));
+  set_lowest_hi_page(context, get_page_of_virtual_address(HIGHESTVIRTUALADDRESS));
   set_highest_hi_page(context, get_lowest_hi_page(context));
 
   if (parent != MY_CONTEXT) {
@@ -11167,7 +11137,7 @@ void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt) {
   set_ec_syscall(context, 0);
   set_ec_page_fault(context, 0);
   set_ec_timer(context, 0);
-  set_mc_stack_peak(context, 0);
+  set_mc_stack_peak(context, HIGHESTVIRTUALADDRESS);
   set_mc_mapped_heap(context, 0);
 
   // garbage collector
@@ -11175,20 +11145,6 @@ void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt) {
   set_free_list_head(context, (uint64_t*) 0);
   set_gcs_in_period(context, 0);
   set_use_gc_kernel(context, GC_DISABLED);
-}
-
-uint64_t* create_context(uint64_t* parent, uint64_t* vctxt) {
-  uint64_t* context;
-
-  context = new_context();
-
-  init_context(context, parent, vctxt);
-
-  if (debug_create)
-    printf("%s: parent context %s created child context %s\n", selfie_name,
-      get_name(parent), get_name(used_contexts));
-
-  return context;
 }
 
 uint64_t* find_context(uint64_t* parent, uint64_t* vctxt) {
@@ -11205,6 +11161,45 @@ uint64_t* find_context(uint64_t* parent, uint64_t* vctxt) {
   }
 
   return (uint64_t*) 0;
+}
+
+void free_context(uint64_t* context) {
+  set_next_context(context, free_contexts);
+
+  free_contexts = context;
+}
+
+uint64_t* delete_context(uint64_t* context, uint64_t* from) {
+  if (get_next_context(context) != (uint64_t*) 0)
+    set_prev_context(get_next_context(context), get_prev_context(context));
+
+  if (get_prev_context(context) != (uint64_t*) 0) {
+    set_next_context(get_prev_context(context), get_next_context(context));
+    set_prev_context(context, (uint64_t*) 0);
+  } else
+    from = get_next_context(context);
+
+  free_context(context);
+
+  return from;
+}
+
+// -----------------------------------------------------------------
+// -------------------------- MICROKERNEL --------------------------
+// -----------------------------------------------------------------
+
+uint64_t* create_context(uint64_t* parent, uint64_t* vctxt) {
+  uint64_t* context;
+
+  context = new_context();
+
+  init_context(context, parent, vctxt);
+
+  if (debug_create)
+    printf("%s: parent context %s created child context %s\n", selfie_name,
+      get_name(parent), get_name(used_contexts));
+
+  return context;
 }
 
 uint64_t* cache_context(uint64_t* vctxt) {
@@ -11265,12 +11260,9 @@ void save_context(uint64_t* context) {
 
   set_ic_all(context, get_total_number_of_instructions() - get_ic_all(context));
 
-  // number of bytes currently allocated on stack
-  r = VIRTUALMEMORYSIZE * GIGABYTE - *(get_regs(context) + REG_SP);
-
-  if (r > get_mc_stack_peak(context))
+  if (*(get_regs(context) + REG_SP) < get_mc_stack_peak(context))
     // keep track of peak amount of stack allocation
-    set_mc_stack_peak(context, r);
+    set_mc_stack_peak(context, *(get_regs(context) + REG_SP));
 }
 
 uint64_t lowest_page(uint64_t page, uint64_t lo) {
@@ -11291,19 +11283,21 @@ uint64_t highest_page(uint64_t page, uint64_t hi) {
 void map_page(uint64_t* context, uint64_t page, uint64_t frame) {
   uint64_t* table;
 
-  table = get_pt(context);
+  if (frame != 0) {
+    table = get_pt(context);
 
-  // assert: page is unmapped
+    if (get_frame_for_page(table, page) == 0) {
+      set_PTE_for_page(table, page, frame);
 
-  set_page_frame(table, page, frame);
-
-  // exploit spatial locality in page table caching
-  if (page <= page_of_virtual_address(get_program_break(context) - WORDSIZE)) {
-    set_lowest_lo_page(context, lowest_page(page, get_lowest_lo_page(context)));
-    set_highest_lo_page(context, highest_page(page, get_highest_lo_page(context)));
-  } else {
-    set_lowest_hi_page(context, lowest_page(page, get_lowest_hi_page(context)));
-    set_highest_hi_page(context, highest_page(page, get_highest_hi_page(context)));
+      // exploit spatial locality in page table caching
+      if (page <= get_page_of_virtual_address(get_program_break(context) - WORDSIZE)) {
+        set_lowest_lo_page(context, lowest_page(page, get_lowest_lo_page(context)));
+        set_highest_lo_page(context, highest_page(page, get_highest_lo_page(context)));
+      } else {
+        set_lowest_hi_page(context, lowest_page(page, get_lowest_hi_page(context)));
+        set_highest_hi_page(context, highest_page(page, get_highest_hi_page(context)));
+      }
+    } // else assert: frame == get_frame_for_page(table, page)
   }
 
   if (debug_map)
@@ -11311,26 +11305,14 @@ void map_page(uint64_t* context, uint64_t page, uint64_t frame) {
       page, (uint64_t) frame, get_name(context));
 }
 
-void cache_page_table(uint64_t* context, uint64_t* table, uint64_t* parent_table, uint64_t lo, uint64_t hi) {
-  uint64_t PTE_address;
+void restore_region(uint64_t* context, uint64_t* table, uint64_t* parent_table, uint64_t lo, uint64_t hi) {
   uint64_t frame;
 
   while (lo < hi) {
-    // PTE address of lo page in page table in parent address space
-    PTE_address = (uint64_t) get_PTE_address(parent_table, table, lo);
+    if (is_virtual_address_mapped(parent_table, (uint64_t) get_PTE_address_for_page(parent_table, table, lo))) {
+      frame = load_virtual_memory(parent_table, (uint64_t) get_PTE_address_for_page(parent_table, table, lo));
 
-    // PTEs in page table in parent address space may be unmapped
-    if (is_virtual_address_mapped(parent_table, PTE_address)) {
-      // page frame of lo page in parent address space
-      frame = load_virtual_memory(parent_table, PTE_address);
-
-      // page may be unmapped even if PTE of page is mapped
-      if (frame != 0) {
-        // assert: page frame in parent address space is mapped
-        frame = get_page_frame(parent_table, page_of_virtual_address(frame));
-
-        map_page(context, lo, frame);
-      }
+      map_page(context, lo, get_frame_for_page(parent_table, get_page_of_virtual_address(frame)));
     }
 
     lo = lo + 1;
@@ -11380,14 +11362,14 @@ void restore_context(uint64_t* context) {
     lo = load_virtual_memory(parent_table, lowest_lo_page(vctxt));
     hi = load_virtual_memory(parent_table, highest_lo_page(vctxt));
 
-    cache_page_table(context, table, parent_table, lo, hi);
+    restore_region(context, table, parent_table, lo, hi);
 
     store_virtual_memory(parent_table, lowest_lo_page(vctxt), hi);
 
     lo = load_virtual_memory(parent_table, lowest_hi_page(vctxt));
     hi = load_virtual_memory(parent_table, highest_hi_page(vctxt));
 
-    cache_page_table(context, table, parent_table, lo, hi);
+    restore_region(context, table, parent_table, lo, hi);
 
     store_virtual_memory(parent_table, highest_hi_page(vctxt), lo);
 
@@ -11409,10 +11391,106 @@ void restore_context(uint64_t* context) {
   set_ic_all(context, get_total_number_of_instructions() - get_ic_all(context));
 }
 
+uint64_t is_code_address(uint64_t* context, uint64_t vaddr) {
+  // is address in code segment?
+  if (vaddr >= get_code_seg_start(context))
+    if (vaddr < get_code_seg_start(context) + get_code_seg_size(context))
+      return 1;
+
+  return 0;
+}
+
+uint64_t is_data_address(uint64_t* context, uint64_t vaddr) {
+  // is address in data segment?
+  if (vaddr >= get_data_seg_start(context))
+    if (vaddr < get_data_seg_start(context) + get_data_seg_size(context))
+      return 1;
+
+  return 0;
+}
+
+uint64_t is_stack_address(uint64_t* context, uint64_t vaddr) {
+  // is address in stack segment?
+  if (vaddr >= *(get_regs(context) + REG_SP))
+    if (vaddr <= HIGHESTVIRTUALADDRESS)
+      return 1;
+
+  return 0;
+}
+
+uint64_t is_heap_address(uint64_t* context, uint64_t vaddr) {
+  // is address in heap segment?
+  if (vaddr >= get_heap_seg_start(context))
+    if (vaddr < get_program_break(context))
+      return 1;
+
+  return 0;
+}
+
+uint64_t is_address_between_stack_and_heap(uint64_t* context, uint64_t vaddr) {
+  // is address between heap and stack segments?
+  if (vaddr >= get_program_break(context))
+    if (vaddr < *(get_regs(context) + REG_SP))
+      return 1;
+
+  return 0;
+}
+
+uint64_t is_data_stack_heap_address(uint64_t* context, uint64_t vaddr) {
+  if (is_data_address(context, vaddr))
+    return 1;
+  else if (is_stack_address(context, vaddr))
+    return 1;
+  else if (is_heap_address(context, vaddr))
+    return 1;
+  else
+    return 0;
+}
+
+uint64_t is_valid_segment_read(uint64_t vaddr) {
+  if (is_data_address(current_context, vaddr)) {
+    data_reads = data_reads + 1;
+
+    return 1;
+  } else if (is_stack_address(current_context, vaddr)) {
+    stack_reads = stack_reads + 1;
+
+    return 1;
+  } else if (is_heap_address(current_context, vaddr)) {
+    heap_reads = heap_reads + 1;
+
+    return 1;
+  } else
+    return 0;
+}
+
+uint64_t is_valid_segment_write(uint64_t vaddr) {
+  if (is_data_address(current_context, vaddr)) {
+    data_writes = data_writes + 1;
+
+    return 1;
+  } else if (is_stack_address(current_context, vaddr)) {
+    stack_writes = stack_writes + 1;
+
+    return 1;
+  } else if (is_heap_address(current_context, vaddr)) {
+    heap_writes = heap_writes + 1;
+
+    return 1;
+  } else
+    return 0;
+}
+
+// -----------------------------------------------------------------
+// ---------------------------- KERNEL -----------------------------
+// -----------------------------------------------------------------
+
 uint64_t pavailable() {
   if (free_page_frame_memory > 0)
     return 1;
-  else if (allocated_page_frame_memory + MEGABYTE <= PHYSICALMEMORYSIZE * PHYSICALMEMORYEXCESS)
+  else if (allocated_page_frame_memory + MEGABYTE <=
+            PHYSICALMEMORYEXCESS * PHYSICALMEMORYSIZE * sizeof(uint64_t) / WORDSIZE)
+    // single word on 32-bit target occupies double word on 64-bit system
     return 1;
   else
     return 0;
@@ -11423,28 +11501,31 @@ uint64_t pused() {
 }
 
 uint64_t* palloc() {
+  uint64_t double_for_single_word;
   uint64_t block;
   uint64_t frame;
 
+  // single word on 32-bit target occupies double word on 64-bit system
+  double_for_single_word = sizeof(uint64_t) / WORDSIZE;
+
   // assert: PHYSICALMEMORYSIZE is equal to or a multiple of MEGABYTE
-  // assert: PAGEFRAMESIZE is a factor of MEGABYTE strictly less than MEGABYTE
+  // assert: PAGESIZE is a factor of MEGABYTE strictly less than MEGABYTE
 
   if (free_page_frame_memory == 0) {
     if (pavailable()) {
-      // single word on 32-bit target occupies double word on 64-bit system
-      free_page_frame_memory = MEGABYTE * (PAGEFRAMESIZE / PAGESIZE);
+      free_page_frame_memory = MEGABYTE * double_for_single_word;
 
       // on boot level 0 allocate zeroed memory
       block = (uint64_t) zmalloc(free_page_frame_memory);
 
       allocated_page_frame_memory = allocated_page_frame_memory + free_page_frame_memory;
 
-      // page frames must be PAGEFRAMESIZE-aligned in memory
-      next_page_frame = round_up(block, PAGEFRAMESIZE);
+      // page frames must be page-aligned to work as page table index
+      next_page_frame = round_up(block, PAGESIZE * double_for_single_word);
 
       if (next_page_frame > block)
-        // losing one page frame to alignment
-        free_page_frame_memory = free_page_frame_memory - PAGEFRAMESIZE;
+        // losing one page frame to fragmentation
+        free_page_frame_memory = free_page_frame_memory - PAGESIZE * double_for_single_word;
     } else {
       printf("%s: palloc out of physical memory\n", selfie_name);
 
@@ -11454,12 +11535,12 @@ uint64_t* palloc() {
 
   frame = next_page_frame;
 
-  next_page_frame = next_page_frame + PAGEFRAMESIZE;
+  next_page_frame = next_page_frame + PAGESIZE * double_for_single_word;
 
-  free_page_frame_memory = free_page_frame_memory - PAGEFRAMESIZE;
+  free_page_frame_memory = free_page_frame_memory - PAGESIZE * double_for_single_word;
 
   // strictly, touching is only necessary on boot levels higher than 0
-  return touch((uint64_t*) frame, PAGEFRAMESIZE);
+  return touch((uint64_t*) frame, PAGESIZE * double_for_single_word);
 }
 
 void pfree(uint64_t* frame) {
@@ -11471,34 +11552,10 @@ void map_and_store(uint64_t* context, uint64_t vaddr, uint64_t data) {
   // assert: is_virtual_address_valid(vaddr, WORDSIZE) == 1
 
   if (is_virtual_address_mapped(get_pt(context), vaddr) == 0)
-    map_page(context, page_of_virtual_address(vaddr), (uint64_t) palloc());
+    map_page(context, get_page_of_virtual_address(vaddr), (uint64_t) palloc());
 
   store_virtual_memory(get_pt(context), vaddr, data);
 }
-
-void map_unmapped_pages(uint64_t* context) {
-  uint64_t page;
-
-  // assert: page table is only mapped from beginning up and end down
-
-  page = get_lowest_lo_page(context);
-
-  while (is_page_mapped(get_pt(context), page))
-    page = page + 1;
-
-  while (pavailable()) {
-    map_page(context, page, (uint64_t) palloc());
-
-    page = page + 1;
-  }
-
-  // allowing more palloc for caching tree page tables
-  PHYSICALMEMORYEXCESS = PHYSICALMEMORYEXCESS + PAGEFRAMESIZE / PAGESIZE;
-}
-
-// -----------------------------------------------------------------
-// ---------------------------- KERNEL -----------------------------
-// -----------------------------------------------------------------
 
 void up_load_binary(uint64_t* context) {
   uint64_t baddr;
@@ -11509,7 +11566,7 @@ void up_load_binary(uint64_t* context) {
 
   // setting up page table cache
 
-  set_lowest_lo_page(context, page_of_virtual_address(code_start));
+  set_lowest_lo_page(context, get_page_of_virtual_address(code_start));
   set_highest_lo_page(context, get_lowest_lo_page(context));
 
   // setting up memory segments
@@ -11518,7 +11575,7 @@ void up_load_binary(uint64_t* context) {
   set_code_seg_size(context, code_size);
   set_data_seg_start(context, data_start);
   set_data_seg_size(context, data_size);
-  set_heap_seg_start(context, round_up(data_start + data_size, PAGESIZE));
+  set_heap_seg_start(context, round_up(data_start + data_size, p_align));
   set_program_break(context, get_heap_seg_start(context));
 
   baddr = 0;
@@ -11626,106 +11683,6 @@ void up_load_arguments(uint64_t* context, uint64_t argc, uint64_t* argv) {
   *(get_regs(context) + REG_S0) = 0;
 }
 
-char* replace_extension(char* filename, char* suffix, char* extension) {
-  char* s;
-  uint64_t i;
-  uint64_t c;
-  char* filename_without_extension;
-
-  // assert: string_length(filename) + string_length(suffix) + 1 + string_length(extension) < MAX_FILENAME_LENGTH
-
-  s = string_alloc(string_length(filename) + string_length(suffix) + 1 + string_length(extension));
-
-  // start reading at end of filename
-  i = string_length(filename);
-
-  c = 0;
-
-  // look for extension
-  while (c != '.') {
-    if (c == '/')
-      i = 0;
-
-    if (i > 0) {
-      i = i - 1;
-
-      c = load_character(filename, i);
-    } else
-      c = '.';
-  }
-
-  if (i == 0)
-    // filename has no extension
-    filename_without_extension = filename;
-  else {
-    filename_without_extension = string_alloc(i);
-
-    // assert: filename_without_extension is zeroed and thus null-terminated
-
-    // copy filename without extension and null-terminator into filename_without_extension
-    while (i > 0) {
-      i = i - 1;
-
-      store_character(filename_without_extension, i, load_character(filename, i));
-    }
-  }
-
-  // writing filename_without_extension with suffix dot extension into s
-  sprintf(s, "%s%s.%s", filename_without_extension, suffix, extension);
-
-  return s;
-}
-
-char* boot_level_prefix(char* s) {
-  uint64_t l;
-  char* t;
-  uint64_t i;
-
-  l = string_length(s);
-
-  t = string_alloc(l);
-
-  i = 0;
-
-  while (i < l) {
-    if (load_character(s, i) == '>') {
-      store_character(t, i, '>');
-
-      i = i + 1;
-    } else {
-      store_character(t, i, 0);
-
-      return t;
-    }
-  }
-
-  return t;
-}
-
-char* increment_boot_level_prefix(char* s, char* t) {
-  char* p;
-  char* u;
-
-  p = boot_level_prefix(s);
-
-  u = string_alloc(string_length(p) + 1 + 1 + string_length(t));
-
-  sprintf(u, "%s> %s", p, t);
-
-  return u;
-}
-
-void boot_loader(uint64_t* context) {
-  up_load_binary(context);
-
-  set_name(context, increment_boot_level_prefix(selfie_name, binary_name));
-
-  // pass binary name as first argument by replacing next argument
-  set_argument(get_name(context));
-
-  up_load_arguments(context, number_of_remaining_arguments(), remaining_arguments());
-}
-
 uint64_t handle_system_call(uint64_t* context) {
   uint64_t a7;
 
@@ -11744,13 +11701,24 @@ uint64_t handle_system_call(uint64_t* context) {
     implement_read(context);
   else if (a7 == SYSCALL_WRITE)
     implement_write(context);
+  else if (a7 == SYSCALL_FORK)
+    implement_fork(context);
+  else if (a7 == SYSCALL_WAIT)
+    implement_wait(context);
   else if (a7 == SYSCALL_OPENAT)
     implement_openat(context);
   else if (a7 == SYSCALL_EXIT) {
     implement_exit(context);
-
+    
+    if(get_number_children(context) != (uint64_t) 0 ){
+      delete_context(context,used_contexts);
+      context = used_contexts;
+    }else{
+      return EXIT;
+    }
+   
     // TODO: exit only if all contexts have exited
-    return EXIT;
+    //return EXIT;
   } else {
     printf("%s: unknown system call %lu\n", selfie_name, a7);
 
@@ -11775,7 +11743,7 @@ uint64_t handle_page_fault(uint64_t* context) {
     // TODO: reuse frames
     map_page(context, page, (uint64_t) palloc());
 
-    if (is_heap_address(context, virtual_address_of_page(page)))
+    if (is_heap_address(context, get_virtual_address_of_page_start(page)))
       set_mc_mapped_heap(context, get_mc_mapped_heap(context) + PAGESIZE);
 
     return DONOTEXIT;
@@ -11842,34 +11810,26 @@ uint64_t mipster(uint64_t* to_context) {
   uint64_t timeout;
   uint64_t* from_context;
 
-
   timeout = TIMESLICE;
 
   while (1) {
     from_context = mipster_switch(to_context, timeout);
 
     if (get_parent(from_context) != MY_CONTEXT) {
-      //printf("condition 1: ");
-      // dispatch exception handling to parent
+      // switch to parent which is in charge of handling exceptions
       to_context = get_parent(from_context);
 
       timeout = TIMEROFF;
-    } else if (handle_exception(from_context) == EXIT){
-      //printf("condition 2: ");
+    } else if (handle_exception(from_context) == EXIT)
       return get_exit_code(from_context);
-    }else if(get_next_context(from_context) != (uint64_t*) 0){
-      //printf("condition 3: ");
+    else if(get_next_context(from_context) != (uint64_t *) 0){
       // TODO: scheduler should go here
       to_context = get_next_context(from_context);
-
       timeout = TIMESLICE;
-    } else {
+    }else{
       to_context = used_contexts;
       timeout = TIMESLICE;
-
     }
-    //printf("wafada1   = %p\n", (void *) &from_context);
-    //printf("wafada2   = %p\n", (void *) &temp);
   }
 }
 
@@ -11881,11 +11841,11 @@ uint64_t hypster(uint64_t* to_context) {
 
     if (handle_exception(from_context) == EXIT)
       return get_exit_code(from_context);
-    else if(get_next_context(from_context) != (uint64_t*) 0){
-      // TODO: scheduler should go here
+    else if(get_next_context(from_context) != (uint64_t *)0){
       to_context = get_next_context(from_context);
-    }else
+    }else{
       to_context = used_contexts;
+    }
   }
 }
 
@@ -11921,7 +11881,7 @@ uint64_t mixter(uint64_t* to_context, uint64_t mix) {
       from_context = hypster_switch(to_context, timeout);
 
     if (get_parent(from_context) != MY_CONTEXT) {
-      // dispatch exception handling to parent
+      // switch to parent which is in charge of handling exceptions
       to_context = get_parent(from_context);
 
       timeout = TIMEROFF;
@@ -11956,7 +11916,7 @@ uint64_t minmob(uint64_t* to_context) {
     from_context = mipster_switch(to_context, timeout);
 
     if (get_parent(from_context) != MY_CONTEXT) {
-      // dispatch exception handling to parent
+      // switch to parent which is in charge of handling exceptions
       to_context = get_parent(from_context);
 
       timeout = TIMEROFF;
@@ -11979,6 +11939,26 @@ uint64_t minmob(uint64_t* to_context) {
   }
 }
 
+void map_unmapped_pages(uint64_t* context) {
+  uint64_t page;
+
+  // assert: page table is only mapped from beginning up and end down
+
+  page = get_lowest_lo_page(context);
+
+  while (is_page_mapped(get_pt(context), page))
+    page = page + 1;
+
+  while (pavailable()) {
+    map_page(context, page, (uint64_t) palloc());
+
+    page = page + 1;
+  }
+
+  // allowing more palloc for caching tree page tables
+  PHYSICALMEMORYEXCESS = PHYSICALMEMORYEXCESS + 1;
+}
+
 uint64_t minster(uint64_t* to_context) {
   // virtual is like physical memory in initial context up to memory size
   // by mapping unmapped pages (for the heap) to all available page frames
@@ -11994,13 +11974,112 @@ uint64_t mobster(uint64_t* to_context) {
   return minmob(to_context);
 }
 
+char* replace_extension(char* filename, char* extension) {
+  char* s;
+  uint64_t i;
+  uint64_t c;
+  char* filename_without_extension;
+
+  // assert: string_length(filename) + 1 + string_length(extension) < MAX_FILENAME_LENGTH
+
+  s = string_alloc(string_length(filename) + 1 + string_length(extension));
+
+  // start reading at end of filename
+  i = string_length(filename);
+
+  c = 0;
+
+  // look for extension
+  while (c != '.') {
+    if (c == '/')
+      i = 0;
+
+    if (i > 0) {
+      i = i - 1;
+
+      c = load_character(filename, i);
+    } else
+      c = '.';
+  }
+
+  if (i == 0)
+    // filename has no extension
+    filename_without_extension = filename;
+  else {
+    filename_without_extension = string_alloc(i);
+
+    // assert: filename_without_extension is zeroed and thus null-terminated
+
+    // copy filename without extension and null-terminator into filename_without_extension
+    while (i > 0) {
+      i = i - 1;
+
+      store_character(filename_without_extension, i, load_character(filename, i));
+    }
+  }
+
+  // writing filename_without_extension plus extension into s
+  sprintf(s, "%s.%s", filename_without_extension, extension);
+
+  return s;
+}
+
+char* boot_level_prefix(char* s) {
+  uint64_t l;
+  char* t;
+  uint64_t i;
+
+  l = string_length(s);
+
+  t = string_alloc(l);
+
+  i = 0;
+
+  while (i < l) {
+    if (load_character(s, i) == '>') {
+      store_character(t, i, '>');
+
+      i = i + 1;
+    } else {
+      store_character(t, i, 0);
+
+      return t;
+    }
+  }
+
+  return t;
+}
+
+char* increment_boot_level_prefix(char* s, char* t) {
+  char* p;
+  char* u;
+
+  p = boot_level_prefix(s);
+
+  u = string_alloc(string_length(p) + 1 + 1 + string_length(t));
+
+  sprintf(u, "%s> %s", p, t);
+
+  return u;
+}
+
+void boot_loader(uint64_t* context) {
+  up_load_binary(context);
+
+  set_name(context, increment_boot_level_prefix(selfie_name, binary_name));
+
+  // pass binary name as first argument by replacing next argument
+  set_argument(get_name(context));
+
+  up_load_arguments(context, number_of_remaining_arguments(), remaining_arguments());
+}
+
 uint64_t selfie_run_mipsterOS(uint64_t machine) {
   uint64_t exit_code;
   uint64_t number;
-  uint64_t contextmemory;
+  uint64_t contextsize;
 
-  contextmemory = 10;
-
+  
   if (code_size == 0) {
     printf("%s: nothing to run, debug, or host\n", selfie_name);
 
@@ -12016,23 +12095,18 @@ uint64_t selfie_run_mipsterOS(uint64_t machine) {
   reset_interpreter();
   reset_profiler();
   reset_microkernel();
+  contextsize = data_size;
+  number = atoi(peek_argument(0));
 
-  number = atoi((peek_argument(0))); //Extraemos el numero del elemento
-  //init_memory(number);  Es necesario?? pq al final esto solo añade el tamaño de la memoria, pero en ese caso con que tamaño de memoria deberia iniciar mipster?
-  init_memory(contextmemory);
-
+  init_memory(contextsize);
 
   while(number){
     current_context = create_context(MY_CONTEXT, 0);
     boot_loader(current_context);
     number = number - 1;
   }
-  
-  
-    
-  run = 1;
 
-  
+  run = 1;
 
   printf("%s: %lu-bit %s executing %lu-bit RISC-U binary %s with %luMB physical memory", selfie_name,
     SIZEOFUINT64INBITS,
@@ -12057,7 +12131,6 @@ uint64_t selfie_run_mipsterOS(uint64_t machine) {
 
   printf("\n%s: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", selfie_name);
 
-  //Aca sospecho que se imprimen los hello worlds
   if (machine == MIPSTER)
     exit_code = mipster(current_context);
   else if (machine == HYPSTER)
@@ -12288,18 +12361,18 @@ uint64_t selfie(uint64_t extras) {
       else if (string_compare(argument, "-S"))
         selfie_disassemble(1);
       else if (string_compare(argument, "-l"))
-        selfie_load(get_argument());
+        selfie_load();
       else if (extras == 0) {
         if (string_compare(argument, "-m"))
           return selfie_run(MIPSTER);
+        else if(string_compare(argument, "-x"))
+          return selfie_run_mipsterOS(MIPSTER);
+        else if(string_compare(argument, "-z"))
+          return selfie_run_mipsterOS(HYPSTER);
         else if (string_compare(argument, "-d"))
           return selfie_run(DIPSTER);
         else if (string_compare(argument, "-r"))
           return selfie_run(RIPSTER);
-        else if (string_compare(argument, "-x")) // añadimos la opcion del -x 
-          return selfie_run_mipsterOS(MIPSTER);
-        else if (string_compare(argument, "-z"))
-          return selfie_run_mipsterOS(HYPSTER);
         else if (string_compare(argument, "-y"))
           return selfie_run(HYPSTER);
         else if (string_compare(argument, "-min"))
@@ -12385,7 +12458,6 @@ int main(int argc, char** argv) {
   init_target();
   init_kernel();
 
-  printf("./selfie: This is Dimael Rivas\'s Selfie!\n");
   exit_code = selfie(0);
 
   return exit_selfie(exit_code, " [ ( -m | -d | -r | -y ) 0-4096 ... ]");
