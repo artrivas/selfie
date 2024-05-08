@@ -7585,6 +7585,7 @@ void implement_exit(uint64_t* context) {
   if(get_parent_context(context) != (uint64_t*) 0){
     set_pid_child_exited(get_parent_context(context),get_context_id(context));
     set_child_exited(get_parent_context(context),get_exit_code(context));
+    set_number_children(get_parent_context(context),get_number_children(get_parent_context(context))-1);
   }
 }
 
@@ -7849,13 +7850,15 @@ void implement_wait(uint64_t* context) {
   wstatus = *(get_regs(context) + REG_A0);
   if(get_pid_child_exited(context) != (uint64_t)0){ 
     *(get_regs(context)+REG_A0) = get_pid_child_exited(context);
-    map_and_store(context, wstatus, 28*get_child_exited(context));
+    map_and_store(context, wstatus, get_child_exited(context));
+
     set_pid_child_exited(context,0);
     set_child_exited(context, 0);
     set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
   }else if(get_number_children(context) == 0){ //Soy el padre y no tengo hijos
     *(get_regs(context)+REG_A0) = -1;
     map_and_store(context,wstatus,(uint64_t) 0);
+
     set_pid_child_exited(context,0);
     set_child_exited(context, 0);
     set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
@@ -11170,14 +11173,26 @@ void free_context(uint64_t* context) {
 }
 
 uint64_t* delete_context(uint64_t* context, uint64_t* from) {
+  if(get_next_context(context) == (uint64_t*) 0){
+    if(get_prev_context(context) == (uint64_t *) 0){
+      free_context(context);
+      used_contexts = (uint64_t *) 0;
+      return from;
+    }
+  }
   if (get_next_context(context) != (uint64_t*) 0)
     set_prev_context(get_next_context(context), get_prev_context(context));
+  else{
+    set_next_context(get_prev_context(context),(uint64_t *) 0);
+  }
 
   if (get_prev_context(context) != (uint64_t*) 0) {
     set_next_context(get_prev_context(context), get_next_context(context));
     set_prev_context(context, (uint64_t*) 0);
-  } else
+  } else{ //el contexto a eliminar es el primero en la lista
+    set_prev_context(get_next_context(context),(uint64_t *) 0);
     from = get_next_context(context);
+  }
 
   free_context(context);
 
@@ -11709,13 +11724,17 @@ uint64_t handle_system_call(uint64_t* context) {
     implement_openat(context);
   else if (a7 == SYSCALL_EXIT) {
     implement_exit(context);
-    
-    if(get_number_children(context) != (uint64_t) 0 ){
-      delete_context(context,used_contexts);
-      context = used_contexts;
-    }else{
-      return EXIT;
+    if(get_next_context(context) == (uint64_t *) 0){
+      if(get_prev_context(context) == (uint64_t *) 0){
+        delete_context(context,used_contexts);
+        return EXIT;
+      }
     }
+    
+    if(get_number_children(context) <= (uint64_t) 0 ){
+      delete_context(context,used_contexts);
+    }
+    
    
     // TODO: exit only if all contexts have exited
     //return EXIT;
