@@ -6,7 +6,7 @@
 # Computer Sciences of the University of Salzburg in Austria. For further
 # information and code please refer to:
 
-# selfie.cs.uni-salzburg.at
+# http://selfie.cs.uni-salzburg.at
 
 # This is the Makefile of the selfie system.
 
@@ -40,7 +40,7 @@ selfie.h: selfie.c
 selfie-gc.h: selfie.c
 	sed 's/gc_init(uint64_t\* context) {/gc_init_deleted(uint64_t\* context) {/' selfie.c > selfie-gc-intermediate.h
 	sed 's/allocate_memory(uint64_t\* context, uint64_t size) {/allocate_memory_deleted(uint64_t\* context, uint64_t size) {/' selfie-gc-intermediate.h > selfie-gc.h
-	sed 's/mark_block(uint64_t\* context, uint64_t address) {/mark_block_deleted(uint64_t\* context, uint64_t address) {/' selfie-gc.h > selfie-gc-intermediate.h
+	sed 's/mark_object(uint64_t\* context, uint64_t address) {/mark_object_deleted(uint64_t\* context, uint64_t address) {/' selfie-gc.h > selfie-gc-intermediate.h
 	sed 's/sweep(uint64_t\* context) {/sweep_deleted(uint64_t\* context) {/' selfie-gc-intermediate.h > selfie-gc.h
 	sed 's/allocate_context() {/allocate_context_deleted() {/' selfie-gc.h > selfie-gc-intermediate.h
 	mv selfie-gc-intermediate.h selfie-gc.h
@@ -54,14 +54,16 @@ selfie-gc-nomain.h: selfie-gc.h
 		whitespace quine escape debug replay \
 		emu emu-emu emu-emu-emu emu-vmm-emu os-emu os-vmm-emu overhead \
 		self-emu self-os-emu self-os-vmm-emu min mob \
-		gib gclib giblib gclibtest boehmgc cache less
+		gib gclib giblib gclibtest boehmgc cache \
+		sat brr bzz mon smt beat btor2 all
 
-# Run less that only requires standard tools and is not too slow
-less: self self-self self-self-check 64-to-32-bit \
+# Run everything that only requires standard tools and is not too slow
+all: self self-self self-self-check 64-to-32-bit \
 		whitespace quine escape debug replay \
 		emu emu-emu emu-vmm-emu os-emu os-vmm-emu \
 		self-emu self-os-emu self-os-vmm-emu min mob \
-		gib gclib giblib gclibtest boehmgc cache
+		gib gclib giblib gclibtest boehmgc cache \
+		sat brr bzz mon smt beat btor2
 
 # Self-compile selfie
 self: selfie
@@ -207,15 +209,6 @@ cache: selfie selfie.m selfie.s examples/cache/dcache-access-[01].c
 	./selfie -c examples/cache/dcache-access-0.c -L1 32
 	./selfie -c examples/cache/dcache-access-1.c -L1 32
 
-# Consider these targets as targets, not files
-.PHONY: sat brr bzz mon smt beat rot synthesize btor2 more all
-
-# Run more that only requires standard tools and is not too slow
-more: sat brr bzz mon smt beat rot synthesize btor2
-
-# Run all that only requires standard tools and is not too slow
-all: less more
-
 # Compile babysat.c with selfie.h as library into babysat executable
 babysat: tools/babysat.c selfie.h
 	$(CC) $(CFLAGS) --include selfie.h $< -o $@
@@ -282,7 +275,7 @@ smt: $(smts-1) $(smts-2) $(smts-3)
 beator: tools/beator.c selfie.h
 	$(CC) $(CFLAGS) --include selfie.h $< -o $@
 
-# Run beator, the RISC-U symbolic model generator, natively on itself and as RISC-U executable
+# Run beator, the symbolic model generator, natively on itself and as RISC-U executable
 beat: beator selfie.h selfie
 	./beator -c selfie.h tools/beator.c - 0 --check-block-access
 	./selfie -c selfie.h tools/beator.c -m 1
@@ -292,45 +285,21 @@ beat: beator selfie.h selfie
 # Prevent make from deleting intermediate target beator
 .SECONDARY: beator
 
-# Compile rotor.c with selfie.h as library into rotor executable
-rotor: tools/rotor.c selfie.h
-	$(CC) $(CFLAGS) --include selfie.h $< -o $@
-
-# Run rotor, the RISC-V symbolic model generator, natively on itself and as RISC-U executable
-rot: rotor selfie.h selfie
-	./rotor -c selfie.h tools/rotor.c - 0
-	./selfie -c selfie.h tools/rotor.c -m 1
-# RISC-U executable also works on itself but output differs slightly
-# because of different filenames and values of a6 register
-
-# Run rotor to generate 64-bit and 32-bit RISC-V machine models for synthesizing exit(1) system call
-synthesize: rotor
-	./rotor - 1
-	./rotor -m32 - 1
-
-# Prevent make from deleting intermediate target rotor
-.SECONDARY: rotor
-
-# Translate *.c including selfie.c into BTOR2 model using beator
-%-beaten.btor2: %.c beator
+# Translate *.c including selfie.c into BTOR2 model
+%.btor2: %.c beator
 	./beator -c $< - 0 --check-block-access
 
-# Translate *.c including selfie.c into BTOR2 model using rotor
-%-rotorized.btor2: %.c rotor
-	./rotor -c $< - 0
-
 # Gather symbolic execution example files as .btor2 files
-beators := $(patsubst %.c,%-beaten.btor2,$(wildcard examples/symbolic/*.c))
-rotors  := $(patsubst %.c,%-rotorized.btor2,$(wildcard examples/symbolic/*.c))
+btor2s := $(patsubst %.c,%.btor2,$(wildcard examples/symbolic/*.c))
 
-# Run beator and rotor on *.c files in symbolic folder and even on selfie
-btor2: $(beators) selfie-beaten.btor2 $(rotors) selfie-rotorized.btor2
+# Run beator on *.c files in symbolic folder and even on selfie
+btor2: $(btor2s) selfie.btor2
 
 # Consider these targets as targets, not files
-.PHONY: spike qemu assemble beator-32 rotor-32 32-bit boolector btormc extras
+.PHONY: spike qemu assemble beator-32 32-bit boolector btormc extras
 
 # Run everything that requires non-standard tools
-extras: spike qemu assemble beator-32 rotor-32 32-bit boolector btormc
+extras: spike qemu assemble beator-32 32-bit boolector btormc
 
 # Run selfie on spike
 spike: selfie.m selfie.s
@@ -352,12 +321,8 @@ assemble: selfie.s
 beator-32: tools/beator.c selfie.h
 	$(CC) $(32-BIT-CFLAGS) --include selfie.h $< -o $@
 
-# Compile rotor.c with selfie.h as library into 32-bit rotor executable
-rotor-32: tools/rotor.c selfie.h
-	$(CC) $(32-BIT-CFLAGS) --include selfie.h $< -o $@
-
 # Self-self-compile, self-execute, self-host, self-gc 32-bit selfie
-32-bit: selfie-32 selfie.h selfie-gc.h tools/boehm-gc.c beator-32 rotor-32
+32-bit: selfie-32 selfie.h selfie-gc.h tools/boehm-gc.c beator-32
 	./selfie-32 -c selfie.c -o selfie-32.m -s selfie-32.s -m 2 -c selfie.c -o selfie-32-2-32.m -s selfie-32-2-32.s
 	diff -q selfie-32.m selfie-32-2-32.m
 	diff -q selfie-32.s selfie-32-2-32.s
@@ -372,7 +337,6 @@ rotor-32: tools/rotor.c selfie.h
 	diff -q selfie-32.s selfie-qemu-32.s
 	riscv64-linux-gnu-as selfie-32.s
 	./beator-32 -c selfie.h tools/beator.c - 0 --check-block-access
-	./rotor-32 -c selfie.h tools/rotor.c - 0
 
 # Run boolector SMT solver on SMT-LIB files generated by monster
 boolector: smt
@@ -380,10 +344,9 @@ boolector: smt
 	$(foreach file, $(smts-2), [ $$(boolector $(file) -e 0 | grep -c ^sat$$) -eq 2 ] &&) true
 	$(foreach file, $(smts-3), [ $$(boolector $(file) -e 0 | grep -c ^sat$$) -eq 3 ] &&) true
 
-# Run btormc bounded model checker on BTOR2 files generated by beator and rotor
+# Run btormc bounded model checker on BTOR2 files generated by beator
 btormc: btor2
-	$(foreach file, $(beators), btormc $(file) &&) true
-	$(foreach file, $(rotors), btormc $(file) &&) true
+	$(foreach file, $(btor2s), btormc $(file) &&) true
 
 # Consider these targets as targets, not files
 .PHONY: validator grader grade pythons
@@ -398,7 +361,7 @@ succeedFiles := $(filter-out $(failingFiles),$(wildcard examples/symbolic/*.c))
 # Run validator on *.c files in symbolic
 validator: selfie beator
 	$(foreach file, $(succeedFiles), tools/validator.py $(file) &&) true
-#   $(foreach file, $(failingFiles), ! tools/validator.py $(file) &&) true
+	$(foreach file, $(failingFiles), ! tools/validator.py $(file) &&) true
 
 # Test autograder
 grader: selfie
@@ -427,4 +390,4 @@ clean:
 	rm -f tools/*.smt
 	rm -f tools/*.btor2
 	rm -f selfie selfie-32 selfie.h selfie-gc.h selfie-gc-nomain.h selfie.exe
-	rm -f babysat buzzr monster beator beator-32 rotor rotor-32
+	rm -f babysat buzzr monster beator beator-32

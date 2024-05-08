@@ -25,7 +25,7 @@ on selfie. It also enables teachers bulk grading students' Git repositories.
 
 The autograder is part of the Selfie Project of the Computational Systems Group
 at the Department of Computer Sciences of the University of Salzburg in Austria,
-selfie.cs.uni-salzburg.at
+http://selfie.cs.uni-salzburg.at
 
 For more detailed information about its usage, please consult the README.
 '''
@@ -277,7 +277,7 @@ def do_bulk_grading(assignment: Optional[Assignment], baseline: List[Assignment]
                     print_message('', loud=True)
             else:
                 print_message(
-                    'commit hash "{}" is not valid'.format(info['commit']), loud=True)
+                    'commit hash "{}" is not valid'.format(info['commit']))
 
             os.chdir(bulk_grade_directory)
 

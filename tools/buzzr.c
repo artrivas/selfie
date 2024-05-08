@@ -7,7 +7,7 @@ Selfie is a project of the Computational Systems Group at the
 Department of Computer Sciences of the University of Salzburg
 in Austria. For further information and code please refer to:
 
-selfie.cs.uni-salzburg.at
+http://selfie.cs.uni-salzburg.at
 
 Buzzr is a fuzzer for selfie ...
 
@@ -156,7 +156,7 @@ void implement_buzzed_read(uint64_t* context) {
     if (is_virtual_address_valid(vbuffer, WORDSIZE))
       if (is_data_stack_heap_address(context, vbuffer))
         if (is_virtual_address_mapped(get_pt(context), vbuffer)) {
-          buffer = translate_virtual_to_physical(get_pt(context), vbuffer);
+          buffer = tlb(get_pt(context), vbuffer);
 
           actually_read = buzz_read(buffer, bytes_to_read);
 
@@ -272,7 +272,7 @@ uint64_t handle_buzzed_page_fault(uint64_t* context) {
   if (pavailable()) {
     map_page(context, page, (uint64_t) palloc());
 
-    if (is_heap_address(context, virtual_address_of_page(page)))
+    if (is_heap_address(context, get_virtual_address_of_page_start(page)))
       set_mc_mapped_heap(context, get_mc_mapped_heap(context) + PAGESIZE);
 
     return DONOTEXIT;

@@ -5,7 +5,7 @@ int main() {
   uint64_t pid;
   uint64_t* status;
 
-  status = malloc(sizeof(uint64_t));
+  status = malloc(8);
   foo_parent = "Hello parent!   ";
   foo_child  = "Hello child!    ";
 

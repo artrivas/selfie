@@ -7,7 +7,7 @@ Selfie is a project of the Computational Systems Group at the
 Department of Computer Sciences of the University of Salzburg
 in Austria. For further information and code please refer to:
 
-selfie.cs.uni-salzburg.at
+http://selfie.cs.uni-salzburg.at
 
 BEATOR is a binary translator for bounded model checking that
 implements a sound and complete translation of RISC-U code to BTOR2
@@ -2913,7 +2913,7 @@ void beator(uint64_t entry_pc) {
 
   // assert: data segment is not empty
 
-  while (pc <= VIRTUALMEMORYSIZE * GIGABYTE - WORDSIZE) {
+  while (pc <= HIGHESTVIRTUALADDRESS) {
     if (pc == data_start + data_size) {
       pc = heap_start;
 
@@ -3026,8 +3026,8 @@ void beator(uint64_t entry_pc) {
     }
 
     if (pc + WORDSIZE == 0)
-      // check 32-bit overflow to terminate loop
-      pc = HIGHESTVIRTUALADDRESS;
+      // check overflow to terminate loop
+      pc = UINT64_MAX;
     else
       pc = pc + WORDSIZE;
   }
@@ -3498,7 +3498,7 @@ uint64_t selfie_model() {
       }
 
       // use extension ".btor2" in name of SMT-LIB file
-      model_name = replace_extension(binary_name, "-beaten", "btor2");
+      model_name = replace_extension(binary_name, "btor2");
 
       // assert: model_name is mapped and not longer than MAX_FILENAME_LENGTH
 
@@ -3550,9 +3550,7 @@ uint64_t selfie_model() {
         }
       }
 
-      restore_context(current_context);
-
-      do_switch(current_context, TIMEROFF);
+      do_switch(current_context, current_context, TIMEROFF);
 
       static_dead_code_elimination(entry_pc, get_pc(current_context));
 

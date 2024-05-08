@@ -16,10 +16,10 @@ int main(int argc, char** argv) {
   uint64_t pid;
   uint64_t x;
 
-  address = malloc(sizeof(uint64_t));
+  address = malloc(8);
   *address = 10;
 
-  status = malloc(sizeof(uint64_t));
+  status = malloc(8);
 
   pid = pthread_create();
 

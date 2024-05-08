@@ -35,13 +35,13 @@ int main(int argc, char** argv) {
   uint64_t* results;
   uint64_t i;
 
-  id = malloc(sizeof(uint64_t));
+  id = malloc(8);
 
   *id = 0;
 
-  s = malloc(sizeof(uint64_t));
+  s = malloc(8);
 
-  c = malloc(sizeof(uint64_t));
+  c = malloc(8);
 
   init_stack();
 

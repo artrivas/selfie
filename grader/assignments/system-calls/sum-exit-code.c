@@ -4,6 +4,7 @@ void exit(int code);
 uint64_t fork();
 uint64_t wait(uint64_t* wstatus);
 
+uint64_t sizeof_uint64 = 8;
 uint64_t number_of_forks = 3;
 uint64_t number_of_processes = 8; // 2 ^ #forks
 uint64_t* status;
@@ -76,11 +77,11 @@ uint64_t parallel_sum(uint64_t depth) {
 int main(int argc, char** argv) {
   uint64_t i;
 
-  status = malloc(sizeof(uint64_t));
+  status = malloc(sizeof_uint64);
 
-  pids = malloc(sizeof(uint64_t) * number_of_forks);
+  pids = malloc(sizeof_uint64 * number_of_forks);
 
-  sorted_numbers = malloc(sizeof(uint64_t) * number_of_processes);
+  sorted_numbers = malloc(sizeof_uint64 * number_of_processes);
 
   // prepare data to be printed
   i = 0;

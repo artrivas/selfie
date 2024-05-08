@@ -1,6 +1,6 @@
 # Selfie [![selfie](https://github.com/cksystemsteaching/selfie/actions/workflows/selfie.yml/badge.svg)](https://github.com/cksystemsteaching/selfie/actions) [![Run on Repl.it](https://replit.com/badge/github/cksystemsteaching/selfie)](https://replit.com/new/github/cksystemsteaching/selfie)
 
-Selfie is a project of the [Computational Systems Group](https://cs.uni-salzburg.at/~ck) at the Department of Computer Sciences of the University of Salzburg in Austria.
+Selfie is a project of the [Computational Systems Group](http://www.cs.uni-salzburg.at/~ck) at the Department of Computer Sciences of the University of Salzburg in Austria.
 
 The Selfie Project provides an educational platform for teaching undergraduate and graduate students the design and implementation of programming languages and runtime systems. The focus is on the construction of compilers, libraries, operating systems, and virtual machine monitors. The common theme is to identify and resolve self-reference in systems code which is seen as the key challenge when teaching systems engineering, hence the name.
 
@@ -20,13 +20,13 @@ Selfie is designed as 64-bit system and requires as such a 64-bit system to run 
 ## Support
 
 1. Slack: Join the conversation in the #selfie channel at [cksystemsteaching.slack.com](https://join.slack.com/t/cksystemsteaching/shared_invite/zt-cp3kb9uq-ACUnAuI8DBdmULQXIjW15A)
-2. Slides: There are classroom [slides](https://selfie.cs.uni-salzburg.at/slides) that provide a comprehensive introduction to the design and implementation of selfie.
+2. Slides: There are classroom [slides](http://selfie.cs.uni-salzburg.at/slides) that provide a comprehensive introduction to the design and implementation of selfie.
 3. Autograder: There is an [autograder](https://github.com/cksystemsteaching/selfie/blob/main/grader/README.md) with compiler and operating systems assignments.
 4. Paper: There is an [Onward! 2017 paper](https://dl.acm.org/doi/10.1145/3133850.3133857) featuring selfie.
-5. Book: There is a free book in early draft form based on selfie called [Elementary Computer Science: From Bits and Bytes to the Universality of Computing](https://github.com/ckirsch/book) reaching out to everyone with an interest in learning about computer science.
+5. Book: There is a free book in early draft form based on selfie called [Elementary Computer Science: From Bits and Bytes to the Big Picture](https://github.com/ckirsch/book) reaching out to everyone with an interest in learning about computer science.
 6. Code: The selfie code is open source and available at [github.com/cksystemsteaching/selfie](https://github.com/cksystemsteaching/selfie)
-7. X: Follow us at [x.com/christophkirsch](https://twitter.com/christophkirsch)
-8. Web: The selfie homepage is at [selfie.cs.uni-salzburg.at](https://selfie.cs.uni-salzburg.at)
+7. Twitter: Follow us at [twitter.com/christophkirsch](https://twitter.com/christophkirsch)
+8. Web: The selfie homepage is at [selfie.cs.uni-salzburg.at](http://selfie.cs.uni-salzburg.at)
 
 ## Extras
 
@@ -40,13 +40,15 @@ Selfie is designed as 64-bit system and requires as such a 64-bit system to run 
 
 ## Installing Selfie
 
-Selfie runs natively on Linux, macOS, and Windows machines and possibly other systems that have a terminal and a C compiler installed. However, even without a C compiler installed on your machine, or if you only have access to a web browser you can run selfie. There are at least three ways to install and run selfie:
+Selfie runs in the cloud and natively on Linux, macOS, and Windows machines and possibly other systems that have a terminal and a C compiler installed. However, even if there is no C compiler installed on your machine or you only have access to a web browser you can still run selfie.
 
-1. Natively on your machine (recommended): download and unzip [selfie](https://github.com/cksystemsteaching/selfie/archive/main.zip). Then, open a terminal to run selfie, see further below. For this to work, you need to have a C compiler installed on your machine. We recommend using [clang](https://clang.llvm.org) or [gcc](https://gcc.gnu.org) (with [cygwin](https://www.cygwin.com) on Windows).
+There are at least three ways to install and run selfie, from real simple to a bit more difficult:
 
-2. In docker on your machine (advanced): download and install [docker](https://docker.com). Then, open a terminal and type `docker run -it cksystemsteaching/selfie`. The advantage of using docker is that you can run selfie out of the box on your machine without installing any tools such as a C compiler. All necessary and even optional tools are pre-installed in the [selfie docker image](https://hub.docker.com/r/cksystemsteaching/selfie). However, you need to know how to use docker.
+1. In the cloud: if you only have access to a web browser, just click [here](https://replit.com/new/github/cksystemsteaching/selfie). Alternatively, create a [github](https://github.com) account, unless you already have one, and fork [selfie](https://github.com/cksystemsteaching/selfie) into your github account. Then, create a [cloud9](https://c9.io) student account, connect it to your github account, verify your email address and set a password (important!), and finally clone your fork of selfie into a new cloud9 workspace.
 
-1. In the cloud (easy but requires Internet connectivity): if you only have access to a web browser, just click [here](https://replit.com/new/github/cksystemsteaching/selfie). Alternatively, create a [github](https://github.com) account, unless you already have one, and fork [selfie](https://github.com/cksystemsteaching/selfie) into your github account. Then, create a [cloud9](https://c9.io) student account, connect it to your github account, verify your email address and set a password (important!), and finally clone your fork of selfie into a new cloud9 workspace.
+2. In docker on your machine: if you have access to a Linux, macOS, or Windows machine download and install [docker](https://docker.com). Then, open a terminal window and type `docker run -it cksystemsteaching/selfie`. Besides simplicity, the key advantage of using docker is that you can run selfie out of the box on your machine but also on QEMU as well as on spike. Both emulators and the SMT solver boolector are pre-installed in the [selfie docker image](https://hub.docker.com/r/cksystemsteaching/selfie).
+
+3. Natively on your machine: instead of using docker, you may also just download and unzip [selfie](https://github.com/cksystemsteaching/selfie/archive/main.zip), and then open a terminal window to run selfie natively on your machine. However, for this to work you need to have a C compiler installed on your machine. We recommend using [clang](https://clang.llvm.org) or [gcc](https://gcc.gnu.org) (with [cygwin](https://www.cygwin.com) on Windows).
 
 At this point we assume that you have a system that supports running selfie. Below we use the `make` command assuming it is installed on your system which is usually the case. However, we also show the command invoked by `make` so that you can always invoke that command manually if your system does not have `make` installed.
 

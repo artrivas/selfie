@@ -7,7 +7,7 @@ Selfie is a project of the Computational Systems Group at the
 Department of Computer Sciences of the University of Salzburg
 in Austria. For further information and code please refer to:
 
-selfie.cs.uni-salzburg.at
+http://selfie.cs.uni-salzburg.at
 
 Monster is a hybrid symbolic execution and bounded model checking
 engine that implements a sound and (up to a given bound) complete
@@ -548,9 +548,7 @@ uint64_t* mipster_symbolic_switch(uint64_t* to_context, uint64_t timeout) {
   reg_sym         = get_symbolic_regs(to_context);
   symbolic_memory = get_symbolic_memory(to_context);
 
-  restore_context(to_context);
-
-  do_switch(to_context, timeout);
+  current_context = do_switch(current_context, to_context, timeout);
 
   execution_depth = get_total_number_of_instructions();
 
@@ -796,7 +794,7 @@ void constrain_load() {
         // and individually
         *(loads_per_instruction + a) = *(loads_per_instruction + a) + 1;
       } else
-        throw_exception(EXCEPTION_PAGEFAULT, page_of_virtual_address(vaddr));
+        throw_exception(EXCEPTION_PAGEFAULT, get_page_of_virtual_address(vaddr));
     } else
       throw_exception(EXCEPTION_SEGMENTATIONFAULT, vaddr);
   } else
@@ -846,7 +844,7 @@ void constrain_store() {
         // and individually
         *(stores_per_instruction + a) = *(stores_per_instruction + a) + 1;
       }  else
-        throw_exception(EXCEPTION_PAGEFAULT, page_of_virtual_address(vaddr));
+        throw_exception(EXCEPTION_PAGEFAULT, get_page_of_virtual_address(vaddr));
     } else
       throw_exception(EXCEPTION_SEGMENTATIONFAULT, vaddr);
   } else
@@ -1049,7 +1047,7 @@ uint64_t* copy_symbolic_context(uint64_t* original, uint64_t location, char* con
   set_ec_syscall(context, 0);
   set_ec_page_fault(context, 0);
   set_ec_timer(context, 0);
-  set_mc_stack_peak(context, 0);
+  set_mc_stack_peak(context, HIGHESTVIRTUALADDRESS);
   set_mc_mapped_heap(context, 0);
 
   set_execution_depth(context, get_execution_depth(original));
@@ -1881,7 +1879,7 @@ uint64_t selfie_run_symbolically() {
       }
 
       // use extension ".smt" in name of SMT-LIB file
-      smt_name = replace_extension(binary_name, "", "smt");
+      smt_name = replace_extension(binary_name, "smt");
 
       // assert: smt_name is mapped and not longer than MAX_FILENAME_LENGTH
 

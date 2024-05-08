@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     child = 1;
 
     // see if we switch back to main (parent)
-    malloc(sizeof(uint64_t));
+    malloc(8);
 
     write(1, foo, 8);
 

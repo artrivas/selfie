@@ -2179,6 +2179,7 @@ uint64_t* new_context();
 void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt);
 
 uint64_t* find_context(uint64_t* parent, uint64_t* vctxt);
+uint64_t* is_in_used_contexts(uint64_t* context);
 
 void      free_context(uint64_t* context);
 uint64_t* delete_context(uint64_t* context, uint64_t* from);
@@ -7850,7 +7851,7 @@ void implement_wait(uint64_t* context) {
   wstatus = *(get_regs(context) + REG_A0);
   if(get_pid_child_exited(context) != (uint64_t)0){ 
     *(get_regs(context)+REG_A0) = get_pid_child_exited(context);
-    map_and_store(context, wstatus, get_child_exited(context));
+    map_and_store(context, wstatus, get_child_exited(context)*256);
 
     set_pid_child_exited(context,0);
     set_child_exited(context, 0);
@@ -11150,6 +11151,22 @@ void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt) {
   set_use_gc_kernel(context, GC_DISABLED);
 }
 
+
+uint64_t* is_in_used_contexts(uint64_t* context) {
+  uint64_t* itr;
+
+  itr = used_contexts;
+
+  while (itr != (uint64_t*) 0) {
+    if(itr == context)
+      return context;
+    itr = get_next_context(itr);
+  }
+
+  return (uint64_t*) 0;
+}
+
+
 uint64_t* find_context(uint64_t* parent, uint64_t* vctxt) {
   uint64_t* context;
 
@@ -11844,6 +11861,9 @@ uint64_t mipster(uint64_t* to_context) {
     else if(get_next_context(from_context) != (uint64_t *) 0){
       // TODO: scheduler should go here
       to_context = get_next_context(from_context);
+      if(is_in_used_contexts(to_context) == (uint64_t *) 0){
+        to_context = used_contexts;
+      }
       timeout = TIMESLICE;
     }else{
       to_context = used_contexts;

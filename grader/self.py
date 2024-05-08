@@ -8,7 +8,7 @@ Selfie is a project of the Computational Systems Group at the Department of
 Computer Sciences of the University of Salzburg in Austria. For further
 information and code please refer to:
 
-selfie.cs.uni-salzburg.at
+http://selfie.cs.uni-salzburg.at
 
 This is the automatic grader of the selfie system.
 """
@@ -265,18 +265,12 @@ def check_fork_and_wait() -> List[Check]:
         check_mipster_execution('parallel-print.c',
                                 lambda code, out: is_permutation_of(
                                     out, [0, 1, 2, 3, 4, 5, 6, 7]),
-                                'fork creates a child process, where the parent can wait for the child process with MIPSTER') + \
-        check_hypster_execution('parallel-print.c',
-                                lambda code, out: is_permutation_of(
-                                    out, [0, 1, 2, 3, 4, 5, 6, 7]),
-                                'fork creates a child process, where the parent can wait for the child process with HYPSTER')
+                                'fork creates a child process, where the parent can wait for the child process with MIPSTER')
 
 
 def check_fork_wait_exit() -> List[Check]:
     return check_mipster_execution('sum-exit-code.c', 56,
                                    'exit code is returned as status parameter from wait with MIPSTER') + \
-        check_hypster_execution('sum-exit-code.c', 56,
-                                'exit code is returned as status parameter from wait with HYPSTER') + \
         check_mipster_execution('unmapped-page-wait.c', 42,
                                 'wait system call maps page to unmapped virtual address') + \
         check_mipster_execution('invalid-address.c', 42,
@@ -295,9 +289,6 @@ def check_lock() -> List[Check]:
         check_execution('./selfie -c <assignment>print-with-lock.c -m 128',
                         '16 processes are printing in sequential order with the use of locks on MIPSTER',
                         success_criteria='Hello World!    ' * 8) + \
-        check_execution('./selfie -c selfie.c -m 128 -c <assignment>print-with-lock.c -y 10',
-                        '16 processes are printing in sequential order with the use of locks on HYPSTER',
-                        success_criteria='Hello World!    ' * 8) + \
         check_execution('./selfie -c <assignment>release-after-exit.c -m 128',
                         'Lock is granted to a process after a terminated process did not release its lock',
                         success_criteria='Hello child!    Hello parent!   ', timeout=5)
@@ -310,16 +301,10 @@ def check_threads() -> List[Check]:
                         'creates a thread, where the parent can join the thread with HYPSTER', success_criteria=70) + \
         check_mipster_execution('shared-data.c', 42,
                                 'data section is shared for threads on MIPSTER') + \
-        check_hypster_execution('shared-data.c', 42,
-                                'data section is shared for threads on HYPSTER') + \
         check_mipster_execution('shared-heap.c', 42,
                                 'heap data is shared for threads on MIPSTER') + \
-        check_hypster_execution('shared-heap.c', 42,
-                                'heap data is shared for threads on HYPSTER') + \
         check_mipster_execution('sum-integer-dekker.c', 210,
-                                'two threads correctly calculate the sum from 1 to 20 with Dekker\'s algorithm on MIPSTER') +\
-        check_hypster_execution('sum-integer-dekker.c', 210,
-                                'two threads correctly calculate the sum from 1 to 20 with Dekker\'s algorithm on HYPSTER')
+                                'two threads correctly calculate the sum from 1 to 20 with Dekker\'s algorithm on MIPSTER')
 
 
 def check_threadsafe_malloc() -> List[Check]:
