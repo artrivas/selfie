@@ -7849,21 +7849,27 @@ void implement_wait(uint64_t* context) {
   //a0 -> childpid |-1
   uint64_t wstatus;
   wstatus = *(get_regs(context) + REG_A0);
-  if(get_pid_child_exited(context) != (uint64_t)0){ 
-    *(get_regs(context)+REG_A0) = get_pid_child_exited(context);
-    map_and_store(context, wstatus, get_child_exited(context)*256);
-
+  if(is_heap_address(context,wstatus)){
+    if(get_pid_child_exited(context) != (uint64_t)0){ 
+      *(get_regs(context)+REG_A0) = get_pid_child_exited(context);
+      map_and_store(context, wstatus, get_child_exited(context)*256);
+      set_pid_child_exited(context,0);
+      set_child_exited(context, 0);
+      
+    }else if(get_number_children(context) == 0){ //Soy el padre y no tengo hijos
+      *(get_regs(context)+REG_A0) = -1;
+      map_and_store(context,wstatus,(uint64_t) 0);
+      set_pid_child_exited(context,0);
+      set_child_exited(context, 0);
+    }
+  }else if(wstatus == 0){
+    *(get_regs(context) + REG_A0) = get_pid_child_exited(context);
     set_pid_child_exited(context,0);
     set_child_exited(context, 0);
-    set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
-  }else if(get_number_children(context) == 0){ //Soy el padre y no tengo hijos
-    *(get_regs(context)+REG_A0) = -1;
-    map_and_store(context,wstatus,(uint64_t) 0);
-
-    set_pid_child_exited(context,0);
-    set_child_exited(context, 0);
-    set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
+  }else{
+    *(get_regs(context) + REG_A0) = -1;
   }
+  set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
 }
 
 
@@ -11188,7 +11194,7 @@ void free_context(uint64_t* context) {
 
   free_contexts = context;
 }
-
+/*
 uint64_t* delete_context(uint64_t* context, uint64_t* from) {
   if(get_next_context(context) == (uint64_t*) 0){
     if(get_prev_context(context) == (uint64_t *) 0){
@@ -11210,6 +11216,21 @@ uint64_t* delete_context(uint64_t* context, uint64_t* from) {
     set_prev_context(get_next_context(context),(uint64_t *) 0);
     from = get_next_context(context);
   }
+
+  free_context(context);
+
+  return from;
+}*/
+
+uint64_t* delete_context(uint64_t* context, uint64_t* from) {
+  if (get_next_context(context) != (uint64_t*) 0)
+    set_prev_context(get_next_context(context), get_prev_context(context));
+
+  if (get_prev_context(context) != (uint64_t*) 0) {
+    set_next_context(get_prev_context(context), get_next_context(context));
+    set_prev_context(context, (uint64_t*) 0);
+  } else
+    from = get_next_context(context);
 
   free_context(context);
 
@@ -11748,8 +11769,8 @@ uint64_t handle_system_call(uint64_t* context) {
       }
     }
     
-    if(get_number_children(context) <= (uint64_t) 0 ){
-      delete_context(context,used_contexts);
+    if(get_number_children(context) == (uint64_t) 0 ){
+      used_contexts = delete_context(context,used_contexts);
     }
     
    
@@ -11862,6 +11883,7 @@ uint64_t mipster(uint64_t* to_context) {
       // TODO: scheduler should go here
       to_context = get_next_context(from_context);
       if(is_in_used_contexts(to_context) == (uint64_t *) 0){
+        printf("holiwiris\n");
         to_context = used_contexts;
       }
       timeout = TIMESLICE;
