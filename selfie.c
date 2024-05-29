@@ -7583,10 +7583,10 @@ void implement_exit(uint64_t* context) {
   signed_int_exit_code = *(get_regs(context) + REG_A0);
 
   set_exit_code(context, sign_shrink(signed_int_exit_code, SYSCALL_BITWIDTH));
-  if(get_parent_context(context) != (uint64_t*) 0){
+  if(get_parent_context(context) != (uint64_t *) 0){
     set_pid_child_exited(get_parent_context(context),get_context_id(context));
     set_child_exited(get_parent_context(context),get_exit_code(context));
-    set_number_children(get_parent_context(context),get_number_children(get_parent_context(context))-1);
+    set_number_children(get_parent_context(context), get_number_children(get_parent_context(context))-1);
   }
 }
 
@@ -7774,42 +7774,34 @@ void implement_fork(uint64_t* context) {
 
   //Code
   vaddr = get_code_seg_start(context);
-  while (vaddr < get_code_seg_start(context) + get_code_seg_size(context)) {
-    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
-      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
-    }/*else{
-      printf("wafada");
-    }*/
+  while(vaddr < get_code_seg_start(context) + get_code_seg_size(context)){
+    if(is_virtual_address_mapped(get_pt(context),vaddr)){
+      map_and_store(child_context,vaddr, load_virtual_memory(get_pt(context),vaddr));
+    }
     vaddr = vaddr + WORDSIZE;
   }
   //Data
   vaddr = get_data_seg_start(context);
-  while (vaddr < get_data_seg_start(context) + get_data_seg_size(context)) {
-    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
-      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
-    }/*else{
-      printf("wafada");
-    }*/
+  while(vaddr < get_data_seg_start(context) + get_data_seg_size(context)){
+    if(is_virtual_address_mapped(get_pt(context),vaddr)){
+      map_and_store(child_context,vaddr, load_virtual_memory(get_pt(context),vaddr));
+    }
     vaddr = vaddr + WORDSIZE;
   }
   //Heap
   vaddr = get_heap_seg_start(context);
-  while (vaddr < get_program_break(context)) {
-    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
-      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
-    }/*else{
-      printf("wafada");
-    }*/
+  while(vaddr < get_heap_seg_start(context) + get_program_break(context)){
+    if(is_virtual_address_mapped(get_pt(context),vaddr)){
+      map_and_store(child_context,vaddr, load_virtual_memory(get_pt(context),vaddr));
+    }
     vaddr = vaddr + WORDSIZE;
   }
 
-  vaddr = *(get_regs(context) + REG_SP);
-  while (vaddr <= HIGHESTVIRTUALADDRESS) {
-    if (is_virtual_address_mapped(get_pt(context), vaddr)) {
-      map_and_store(child_context, vaddr, load_virtual_memory(get_pt(context), vaddr));
-    }/*else{
-      printf("wafada");
-    }*/
+  vaddr = *(get_regs(context)+REG_SP);
+  while(vaddr <= HIGHESTVIRTUALADDRESS){
+    if(is_virtual_address_mapped(get_pt(context),vaddr)){
+      map_and_store(child_context,vaddr, load_virtual_memory(get_pt(context),vaddr));
+    }
     vaddr = vaddr + WORDSIZE;
   }
   
@@ -7820,8 +7812,9 @@ void implement_fork(uint64_t* context) {
     itr = itr + 1;
   }
 
-  *(get_regs(child_context)+REG_A0) = (uint64_t) 0;
   *(get_regs(context) + REG_A0) = get_context_id(child_context);
+  *(get_regs(child_context)+REG_A0) = (uint64_t) 0;
+  
 
   set_pc(child_context,get_pc(child_context)+INSTRUCTIONSIZE);
   set_pc(context,get_pc(context)+INSTRUCTIONSIZE);
@@ -7845,31 +7838,30 @@ void emit_wait() {
 
 
 void implement_wait(uint64_t* context) {
-  //wstatus -> exitcode
-  //a0 -> childpid |-1
+  //exit code-> seteo el valor del exit code
   uint64_t wstatus;
   wstatus = *(get_regs(context) + REG_A0);
   if(is_heap_address(context,wstatus)){
-    if(get_pid_child_exited(context) != (uint64_t)0){ 
-      *(get_regs(context)+REG_A0) = get_pid_child_exited(context);
-      map_and_store(context, wstatus, get_child_exited(context)*256);
-      set_pid_child_exited(context,0);
-      set_child_exited(context, 0);
-      
-    }else if(get_number_children(context) == 0){ //Soy el padre y no tengo hijos
-      *(get_regs(context)+REG_A0) = -1;
-      map_and_store(context,wstatus,(uint64_t) 0);
-      set_pid_child_exited(context,0);
-      set_child_exited(context, 0);
+    if(get_pid_child_exited(context) != (uint64_t) 0){
+      *(get_regs(context) + REG_A0) = get_pid_child_exited(context);  
+      map_and_store(context,wstatus,get_child_exited(context)*256); // wstatus
+      set_pid_child_exited(context,(uint64_t) 0);
+      set_child_exited(context,(uint64_t) 0);
+    }else if(get_number_children(context) == 0){
+      *(get_regs(context) + REG_A0) = -1;
+      map_and_store(context,wstatus,(uint64_t) 0); // NULL
+      set_pid_child_exited(context,(uint64_t) 0);
+      set_child_exited(context,(uint64_t) 0);
     }
   }else if(wstatus == 0){
     *(get_regs(context) + REG_A0) = get_pid_child_exited(context);
-    set_pid_child_exited(context,0);
-    set_child_exited(context, 0);
+    set_pid_child_exited(context,(uint64_t) 0);
+    set_child_exited(context,(uint64_t) 0);
   }else{
     *(get_regs(context) + REG_A0) = -1;
   }
-  set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
+  set_pc(context,get_pc(context)+INSTRUCTIONSIZE);
+  
 }
 
 
@@ -11157,21 +11149,19 @@ void init_context(uint64_t* context, uint64_t* parent, uint64_t* vctxt) {
   set_use_gc_kernel(context, GC_DISABLED);
 }
 
-
 uint64_t* is_in_used_contexts(uint64_t* context) {
   uint64_t* itr;
 
   itr = used_contexts;
 
   while (itr != (uint64_t*) 0) {
-    if(itr == context)
+    if(get_context_id(context) == get_context_id(itr))
       return context;
     itr = get_next_context(itr);
   }
 
   return (uint64_t*) 0;
 }
-
 
 uint64_t* find_context(uint64_t* parent, uint64_t* vctxt) {
   uint64_t* context;
@@ -11194,33 +11184,6 @@ void free_context(uint64_t* context) {
 
   free_contexts = context;
 }
-/*
-uint64_t* delete_context(uint64_t* context, uint64_t* from) {
-  if(get_next_context(context) == (uint64_t*) 0){
-    if(get_prev_context(context) == (uint64_t *) 0){
-      free_context(context);
-      used_contexts = (uint64_t *) 0;
-      return from;
-    }
-  }
-  if (get_next_context(context) != (uint64_t*) 0)
-    set_prev_context(get_next_context(context), get_prev_context(context));
-  else{
-    set_next_context(get_prev_context(context),(uint64_t *) 0);
-  }
-
-  if (get_prev_context(context) != (uint64_t*) 0) {
-    set_next_context(get_prev_context(context), get_next_context(context));
-    set_prev_context(context, (uint64_t*) 0);
-  } else{ //el contexto a eliminar es el primero en la lista
-    set_prev_context(get_next_context(context),(uint64_t *) 0);
-    from = get_next_context(context);
-  }
-
-  free_context(context);
-
-  return from;
-}*/
 
 uint64_t* delete_context(uint64_t* context, uint64_t* from) {
   if (get_next_context(context) != (uint64_t*) 0)
@@ -11762,20 +11725,17 @@ uint64_t handle_system_call(uint64_t* context) {
     implement_openat(context);
   else if (a7 == SYSCALL_EXIT) {
     implement_exit(context);
-    if(get_next_context(context) == (uint64_t *) 0){
-      if(get_prev_context(context) == (uint64_t *) 0){
+    if(get_prev_context(context) == (uint64_t *) 0){
+      if(get_next_context(context) == (uint64_t *) 0){
         delete_context(context,used_contexts);
         return EXIT;
       }
     }
-    
-    if(get_number_children(context) == (uint64_t) 0 ){
+
+    if(get_number_children(context) == 0){
       used_contexts = delete_context(context,used_contexts);
     }
-    
-   
     // TODO: exit only if all contexts have exited
-    //return EXIT;
   } else {
     printf("%s: unknown system call %lu\n", selfie_name, a7);
 
@@ -11883,7 +11843,6 @@ uint64_t mipster(uint64_t* to_context) {
       // TODO: scheduler should go here
       to_context = get_next_context(from_context);
       if(is_in_used_contexts(to_context) == (uint64_t *) 0){
-        printf("holiwiris\n");
         to_context = used_contexts;
       }
       timeout = TIMESLICE;
